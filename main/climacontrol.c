@@ -6,5 +6,9 @@
  */
 
 
+#include "climacontrol.h"
+#include "AM2302.h"
 
-
+void clima_init (){
+	AM2302_init(36);
+}

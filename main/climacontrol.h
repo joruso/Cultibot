@@ -8,7 +8,9 @@
 #ifndef MAIN_CLIMACONTROL_H_
 #define MAIN_CLIMACONTROL_H_
 
-void init_clima ();
-void config_hora();
+
+
+void clima_init ();
+void config_hora_();
 
 #endif /* MAIN_CLIMACONTROL_H_ */
