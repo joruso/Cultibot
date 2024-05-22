@@ -11,7 +11,7 @@
 #include "freertos/event_groups.h"
 #include "freertos/FreeRTOS.h"
 
-#define WIFI_SSID "DESKTOP-MOUVJS8 9045"
+#define WIFI_SSID "JORUSO 7454"
 #define WIFI_PASS "hola1234"
 #define WIFI_MAXIMUM_RETRY  10
 
@@ -42,6 +42,12 @@ static void event_handler (void* arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
         ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+
+        uint8_t primary;
+        wifi_second_chan_t secondary; 
+        esp_wifi_get_channel(&primary,&secondary);
+        ESP_LOGI(TAG, "got channel number: %i", primary);
+        
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
@@ -85,7 +91,7 @@ void wifi_init_sta(void)
             },
         },
     };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA) );
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
