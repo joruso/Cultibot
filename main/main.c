@@ -15,14 +15,17 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "wifi.h"
+#include "cultibot.h"
+#include "sntp.h"
 
+#include "server.h"
 #include "climate_control.h"
 #include "menu_LCD.h"
 
 const static char *TAG = "MAIN";
 
 // Codigo para testear cuanta memoria sobra DESCOMENTAR LA SIGUIENTE LINEA
-
+//#define TEST_MEMORIA
 #ifdef TEST_MEMORIA
 
 #define NUM 1048
@@ -57,11 +60,27 @@ void loop()
 #include "nvs_flash.h"
 void init_drivers()
 {
-
+	esp_err_t err;
 	ESP_ERROR_CHECK(nvs_manager_init());
-	wifi_init_sta();
+
+	//ESP_ERROR_CHECK(nvs_set_value_str(WIFI_SSID,"JORUSO 7454"));
+	//ESP_ERROR_CHECK(nvs_set_value_str(WIFI_PASS,"hola1234"));
+
+	err = wifi_init();
+
+	if (err != ESP_ERR_WIFI_NOT_CONNECT){
+		ESP_ERROR_CHECK (err);
+	}else if (err == ESP_OK)
+	{
+		obtain_time();
+    	setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1);
+	}
+	
+
+
 	ESP_LOGI(TAG, "wifi inicializados");
 	climate_init();
+
 	//nvs_manager_deinit();
 }
 
@@ -69,7 +88,7 @@ void app_main(void)
 {
 	init_drivers();
 	ESP_LOGI(TAG, "Drivers inicializados");
-
+	start_webserver();
 	init_menu();
 
 #ifdef TEST_MEMORIA

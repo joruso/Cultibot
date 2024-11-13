@@ -3,7 +3,7 @@
 #include <string.h>
 #include "protocolWater.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+
 #include <stdbool.h>
 
 static const char *TAG = "ESP-NOW";

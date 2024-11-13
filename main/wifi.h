@@ -8,6 +8,9 @@
 #ifndef MAIN_WIFI_H_
 #define MAIN_WIFI_H_
 
-void wifi_init_sta(void);
+#include <esp_err.h>
+
+esp_err_t wifi_init(void);
+esp_err_t wifi_connect_sta(void);
 
 #endif /* MAIN_WIFI_H_ */

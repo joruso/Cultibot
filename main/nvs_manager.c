@@ -5,9 +5,8 @@
 
 static nvs_handle_t nvs_handle_manager;
 
-esp_err_t nvs_manager_init()
+esp_err_t nvs_manager_init(void)
 {
-
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
@@ -20,14 +19,21 @@ esp_err_t nvs_manager_init()
     return err;
 }
 
-void nvs_manager_deinit()
+
+void nvs_manager_deinit(void)
 {
     nvs_close(nvs_handle_manager);
 }
 
 esp_err_t nvs_get_value_str(const char *key, char *value, size_t *length)
 {
-    return nvs_get_str(nvs_handle_manager, key, value, length);
+    esp_err_t err = nvs_get_str(nvs_handle_manager, key, value, length);
+
+    if (err == ESP_ERR_NVS_NOT_FOUND)
+    {
+        return nvs_set_str(nvs_handle_manager, key, "value");
+    }
+    return err;
 }
 
 esp_err_t nvs_get_value_num_u32(const char *key, uint32_t *value)
@@ -50,10 +56,11 @@ esp_err_t nvs_get_value_num_u8(const char *key, uint8_t *value)
     return err;
 }
 
-esp_err_t nvs_set_value_str(const char *key, char *value, size_t *length)
+esp_err_t nvs_set_value_str(const char *key, const char *value)
 {
     return nvs_set_str(nvs_handle_manager, key, value);
 }
+
 esp_err_t nvs_set_value_num_u32(const char *key, uint32_t value)
 {
     return nvs_set_u32(nvs_handle_manager, key, value);

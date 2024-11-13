@@ -164,6 +164,6 @@ static void LCD_pulseEnable(uint8_t data)
 void LCD_writeUint(uint32_t num)
 {
     char char_value[12];
-    sprintf(char_value,"%lu       ",num);
+    sprintf(char_value, "%lu       ", num);
     LCD_writeStr(char_value);
 }

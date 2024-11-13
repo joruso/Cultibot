@@ -34,4 +34,10 @@
 #define LIGHT_ON_HOUR "light_on_h"   
 #define LIGHT_OFF_HOUR "light_off_h" 
 
+#define WIFI_SSID "wifi_ssid"   // Tiene una longuitud de 32 bits
+#define WIFI_PASS "wifi_pass"   // Tiene una longuitud de 64 bits
+
+#define ESP_WIFI_SSID "Cultibot"
+#define ESP_WIFI_PASS "hola1234"
+
 #endif

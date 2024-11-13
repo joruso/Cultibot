@@ -5,18 +5,39 @@
  *      Author: Joruso
  */
 
-#include "sntp.h"
+#include "server.h"
+#include <sys/param.h>
+#include "cultibot.h"
 
-/* Our URI handler function to be called during GET /uri request */
-esp_err_t get_handler(httpd_req_t *req)
+extern const char dash_start[] asm("_binary_dash_html_start");
+extern const char dash_end[] asm("_binary_dash_html_end");
+
+extern const char config_start[] asm("_binary_config_html_start");
+extern const char config_end[] asm("_binary_config_html_end");
+
+httpd_handle_t server = NULL;
+
+esp_err_t get_json_handler(httpd_req_t *req)
 {
-    /* Send a simple response */
-    const char resp[] = "URI GET Response";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    //httpd_resp_send(req, dash_start, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
-/* Our URI handler function to be called during POST /uri request */
+esp_err_t get_dash_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, dash_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+esp_err_t get_config_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, config_start, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+
 esp_err_t post_handler(httpd_req_t *req)
 {
     /* Destination buffer for content of HTTP POST request.
@@ -49,15 +70,28 @@ esp_err_t post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* URI handler structure for GET /uri */
-httpd_uri_t uri_get = {
-    .uri      = "/uri",
+
+httpd_uri_t dash_get = {
+    .uri      = "/",
     .method   = HTTP_GET,
-    .handler  = get_handler,
+    .handler  = get_dash_handler,
     .user_ctx = NULL
 };
 
-/* URI handler structure for POST /uri */
+httpd_uri_t config_get = {
+    .uri      = "/config",
+    .method   = HTTP_GET,
+    .handler  = get_config_handler,
+    .user_ctx = NULL
+};
+
+httpd_uri_t json_get = {
+    .uri      = "/info_json",
+    .method   = HTTP_GET,
+    .handler  = get_json_handler,
+    .user_ctx = NULL
+};
+
 httpd_uri_t uri_post = {
     .uri      = "/uri",
     .method   = HTTP_POST,
@@ -65,30 +99,22 @@ httpd_uri_t uri_post = {
     .user_ctx = NULL
 };
 
-/* Function for starting the webserver */
-httpd_handle_t start_webserver(void)
+void start_webserver(void)
 {
-    /* Generate default configuration */
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
-    /* Empty handle to esp_http_server */
-    httpd_handle_t server = NULL;
-
-    /* Start the httpd server */
     if (httpd_start(&server, &config) == ESP_OK) {
-        /* Register URI handlers */
-        httpd_register_uri_handler(server, &uri_get);
+        httpd_register_uri_handler(server, &dash_get);
+        httpd_register_uri_handler(server, &config_get);
         httpd_register_uri_handler(server, &uri_post);
+        httpd_register_uri_handler(server, &json_get);
     }
-    /* If server failed to start, handle will be NULL */
-    return server;
 }
 
-/* Function for stopping the webserver */
-void stop_webserver(httpd_handle_t server)
+void stop_webserver(void)
 {
     if (server) {
-        /* Stop the httpd server */
         httpd_stop(server);
     }
 }
+ 

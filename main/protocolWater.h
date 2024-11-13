@@ -21,10 +21,10 @@ typedef enum
 
 typedef struct __attribute__((packed))
 {
-    uint32_t water_ml;
-    uint16_t aditive1_ml;
-    uint16_t aditive2_ml;
-    uint16_t aditive3_ml;
+    uint16_t water_dl;
+    uint8_t aditive1_ml_per_L;
+    uint8_t aditive2_ml_per_L;
+    uint8_t aditive3_ml_per_L;
 } parameterIrrigation_t;
 
 typedef struct __attribute__((packed))

@@ -92,7 +92,7 @@ static int8_t show_menu(char *names[])
 
     LCD_clearScreen();
     LCD_writeChar('>');
-    for (uint8_t i = 0; i < LCD_ROW; i++)
+    for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
     {
         LCD_setCursor(2, i);
         LCD_writeStr(names[i]);
@@ -119,7 +119,7 @@ static int8_t show_menu(char *names[])
                         extraPos++;
 
                         LCD_clearScreen();
-                        for (uint8_t i = 0; i < LCD_ROW; i++)
+                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
                         {
                             LCD_setCursor(2, i);
                             // ESP_LOGI(TAG, "posi: %i, value:", i + extraPos);
@@ -147,7 +147,7 @@ static int8_t show_menu(char *names[])
                         extraPos--;
 
                         LCD_clearScreen();
-                        for (uint8_t i = 0; i < LCD_ROW; i++)
+                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
                         {
                             LCD_setCursor(2, i);
                             // ESP_LOGI(TAG, "posi: %i, value:", i + extraPos);
@@ -279,9 +279,6 @@ void init_menu()
     LCD_clearScreen();
     init_gpio_menu();
 
-    obtain_time();
-    setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1);
-
     while (1)
     {
 
@@ -379,10 +376,12 @@ void init_menu()
         case 41:
             ESP_ERROR_CHECK (mod_variable("Hora encendido",LIGHT_ON_HOUR, 0,23));
             ESP_ERROR_CHECK (mod_variable("Min encendido",LIGHT_ON_MIN, 0,59));
+            estado = 4;
             break;
         case 42:
             ESP_ERROR_CHECK (mod_variable("Hora apagado",LIGHT_OFF_HOUR, 0,23));
             ESP_ERROR_CHECK (mod_variable("Min apagado",LIGHT_OFF_MIN, 0,59));
+            estado = 4;
             break;
         default:
             break;
