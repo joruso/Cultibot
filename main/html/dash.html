@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Temperatura y Humedad</title>
+    <style>
+        /* Estilos generales */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+
+        /* Estilos de la barra lateral */
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            background-color: #333;
+            color: white;
+            position: fixed;
+            left: -250px;
+            transition: left 0.3s;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            padding: 1em 0;
+            background-color: #444;
+            margin: 0;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .sidebar ul li button {
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background-color: #333;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar ul li button:hover {
+            background-color: #555;
+        }
+
+
+        /* Estilos del contenido principal */
+        .content {
+            margin-left: 0px;
+            padding: 20px;
+            width: 100%;
+            transition: margin-left 0.3s;
+        }
+
+        .content h1 {
+            color: #333;
+            margin-left: 60px;
+        }
+
+        .content .data-card {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: #f4f4f4;
+        }
+
+        .content .data-card h2 {
+            font-size: 24px;
+            margin: 0;
+        }
+
+        /* Botón para abrir/cerrar la barra lateral */
+        #menuToggle {
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Barra lateral -->
+    <div class="sidebar" id="sidebar">
+        <h2>Menú</h2>
+        <ul>
+            <li><button>Inicio</button></li>
+            <li><button>Temperatura</button></li>
+            <li><button>Humedad</button></li>
+            <li><button id="config_btn">Configuración</button></li>
+            <li><button>Salir</button></li>
+        </ul>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="content" id="content">
+        <button id="menuToggle">☰</button>
+        <h1>Dashboard</h1>
+        <div class="data-card">
+            <h2>Temperatura: <span id="temperature">--</span>°C</h2>
+        </div>
+        <div class="data-card">
+            <h2>Humedad: <span id="humidity">--</span>%</h2>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById("sidebar");
+        const content = document.getElementById("content");
+        const menuToggle = document.getElementById("menuToggle");
+
+        menuToggle.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        });
+
+        // Simulación de datos de temperatura y humedad
+        function updateData() {
+            const temperature = Math.floor(Math.random() * 10) + 20; // Genera un valor aleatorio de 20 a 30
+            const humidity = Math.floor(Math.random() * 40) + 30;    // Genera un valor aleatorio de 30 a 70
+
+            document.getElementById("temperature").textContent = temperature;
+            document.getElementById("humidity").textContent = humidity;
+        }
+        document.getElementById('config_btn').onclick = function () {
+            window.location.href = `${window.location.origin}/config`;
+        };
+
+        setInterval(updateData, 5000);
+        updateData();
+    </script>
+</body>
+
+</html>
