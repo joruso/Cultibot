@@ -16,7 +16,6 @@ typedef enum
     COMANDO_ALIVE,
     COMANDO_TEST_10_SEG,
     COMANDO_SET_IRRIGATION,
-    COMANDO_SET_TIME
 } tipoComando;
 
 typedef struct __attribute__((packed))
@@ -29,20 +28,10 @@ typedef struct __attribute__((packed))
 
 typedef struct __attribute__((packed))
 {
-    uint8_t hour;
-    uint8_t min;
-    uint8_t day;
-    uint8_t month;
-    uint8_t year;
-} parameterTime_t;
-
-typedef struct __attribute__((packed))
-{
     uint8_t comando;
     union
     {
         parameterIrrigation_t paramIrrigation;
-        parameterTime_t paramTime;
     };
 } data_water_t;
 

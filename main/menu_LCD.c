@@ -275,7 +275,11 @@ esp_err_t mod_variable(char *text, char *var, uint8_t min_value, uint8_t max_val
 
 void init_menu()
 {
-    LCD_init();
+    
+    if (LCD_init() != ESP_OK) {
+        ESP_LOGE (TAG, "Menu no inicilizado, falla conexion I2C");
+        return;
+    }
     LCD_clearScreen();
     init_gpio_menu();
 

@@ -25,7 +25,7 @@
 const static char *TAG = "MAIN";
 
 // Codigo para testear cuanta memoria sobra DESCOMENTAR LA SIGUIENTE LINEA
-//#define TEST_MEMORIA
+// #define TEST_MEMORIA
 #ifdef TEST_MEMORIA
 
 #define NUM 1048
@@ -63,25 +63,26 @@ void init_drivers()
 	esp_err_t err;
 	ESP_ERROR_CHECK(nvs_manager_init());
 
-	//ESP_ERROR_CHECK(nvs_set_value_str(WIFI_SSID,"JORUSO 7454"));
-	//ESP_ERROR_CHECK(nvs_set_value_str(WIFI_PASS,"hola1234"));
+	// ESP_ERROR_CHECK(nvs_set_value_str(WIFI_SSID,"JORUSO 7454"));
+	// ESP_ERROR_CHECK(nvs_set_value_str(WIFI_PASS,"hola1234"));
 
 	err = wifi_init();
 
-	if (err != ESP_ERR_WIFI_NOT_CONNECT){
-		ESP_ERROR_CHECK (err);
-	}else if (err == ESP_OK)
+	if (err == ESP_OK)
 	{
 		obtain_time();
-    	setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1);
+		setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1);
 	}
-	
+	else if (err != ESP_ERR_WIFI_NOT_CONNECT)
+	{
+		ESP_ERROR_CHECK(err);
+	}
 
 
 	ESP_LOGI(TAG, "wifi inicializados");
 	climate_init();
 
-	//nvs_manager_deinit();
+	// nvs_manager_deinit();
 }
 
 void app_main(void)
@@ -89,13 +90,16 @@ void app_main(void)
 	init_drivers();
 	ESP_LOGI(TAG, "Drivers inicializados");
 	start_webserver();
-	init_menu();
+	ESP_LOGI(TAG, "Servidor inicializado");
+	climate_init();
+	ESP_LOGI(TAG, "Control Climatico inicializado");
+	init_menu(); 
 
 #ifdef TEST_MEMORIA
 	loop();
 #endif
 	while (1)
 	{
-		 
+		vTaskDelay (10000*portTICK_PERIOD_MS);
 	}
 }

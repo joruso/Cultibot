@@ -46,12 +46,13 @@ static uint8_t LCD_cols;
 static uint8_t LCD_rows;
 i2c_master_dev_handle_t dev_handle;
 
-static void LCD_writeNibble(uint8_t nibble, uint8_t mode);
-static void LCD_writeByte(uint8_t data, uint8_t mode);
-static void LCD_pulseEnable(uint8_t nibble);
+static esp_err_t LCD_writeNibble(uint8_t nibble, uint8_t mode);
+static esp_err_t LCD_writeByte(uint8_t data, uint8_t mode);
+static esp_err_t LCD_pulseEnable(uint8_t nibble);
 
-void LCD_init()
+esp_err_t LCD_init()
 {
+    esp_err_t err;
     LCD_cols = LCD_COLS;
     LCD_rows = LCD_ROW;
 
@@ -73,28 +74,34 @@ void LCD_init()
     vTaskDelay(0.04 * CONFIG_FREERTOS_HZ); // Initial 40 mSec delay
 
     // Reset the LCD controller
-    LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND); // First part of reset sequence
+    err = LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND); // First part of reset sequence
+    if (err != ESP_OK) return err;
     vTaskDelay(0.0041 * CONFIG_FREERTOS_HZ);          // 4.1 mS delay (min)
     // LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND);    // second part of reset sequence
     ets_delay_us(200);                                   // 100 uS delay (min)
-    LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND);    // Third time's a charm
-    LCD_writeNibble(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Activate 4-bit mode
+    err = LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND);    // Third time's a charm
+    if (err != ESP_OK) return err;
+    err = LCD_writeNibble(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Activate 4-bit mode
+    if (err != ESP_OK) return err;
     ets_delay_us(80);                                    // 40 uS delay (min)
 
     // --- Busy flag now available ---
     // Function Set instruction
-    LCD_writeByte(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Set mode, lines, and font
+    err = LCD_writeByte(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Set mode, lines, and font
+    if (err != ESP_OK) return err;
     ets_delay_us(80);
 
     // Clear Display instruction
-    LCD_writeByte(LCD_CLEAR, LCD_COMMAND); // clear display RAM
+    err = LCD_writeByte(LCD_CLEAR, LCD_COMMAND); // clear display RAM
+    if (err != ESP_OK) return err;
     vTaskDelay(0.01 * CONFIG_FREERTOS_HZ); // Clearing memory takes a bit longer
 
     // Entry Mode Set instruction
-    LCD_writeByte(LCD_ENTRY_MODE, LCD_COMMAND); // Set desired shift characteristics
+    err = LCD_writeByte(LCD_ENTRY_MODE, LCD_COMMAND); // Set desired shift characteristics
+    if (err != ESP_OK) return err;
     ets_delay_us(80);
 
-    LCD_writeByte(LCD_DISPLAY_ON, LCD_COMMAND); // Ensure LCD is set to on
+    return LCD_writeByte(LCD_DISPLAY_ON, LCD_COMMAND); // Ensure LCD is set to on
 }
 
 void LCD_setCursor(uint8_t col, uint8_t row)
@@ -133,32 +140,37 @@ void LCD_clearScreen(void)
     vTaskDelay(0.01 * CONFIG_FREERTOS_HZ); // This command takes a while to complete
 }
 
-static void LCD_writeByte(uint8_t data, uint8_t mode)
+static esp_err_t LCD_writeByte(uint8_t data, uint8_t mode)
 {
-    LCD_writeNibble(data & 0xF0, mode);
-    LCD_writeNibble((data << 4) & 0xF0, mode);
+    esp_err_t err;
+    err = LCD_writeNibble(data & 0xF0, mode);
+    err = LCD_writeNibble((data << 4) & 0xF0, mode);
+    return err;
 }
 
-static void LCD_writeNibble(uint8_t nibble, uint8_t mode)
+static esp_err_t LCD_writeNibble(uint8_t nibble, uint8_t mode)
 {
+    esp_err_t err;
     uint8_t data = (nibble & 0xF0) | mode | LCD_BACKLIGHT;
 
-    ESP_ERROR_CHECK(i2c_master_transmit(dev_handle, &data, 1, 200));
+    err = i2c_master_transmit(dev_handle, &data, 1, 200);
+    if (err != ESP_OK) return err;
 
-    LCD_pulseEnable(data); // Clock data into LCD
+    return LCD_pulseEnable(data); // Clock data into LCD
 }
 
-static void LCD_pulseEnable(uint8_t data)
+static esp_err_t LCD_pulseEnable(uint8_t data)
 {
-
+    esp_err_t err;
     uint8_t towrite = data | LCD_ENABLE;
-    ESP_ERROR_CHECK(i2c_master_transmit(dev_handle, &towrite, 1, -1));
-
+    err = i2c_master_transmit(dev_handle, &towrite, 1, -1);
+    if (err != ESP_OK) return err;
     ets_delay_us(1);
     towrite = (data & ~LCD_ENABLE);
-    ESP_ERROR_CHECK(i2c_master_transmit(dev_handle, &towrite, 1, -1));
+    err = i2c_master_transmit(dev_handle, &towrite, 1, -1);
 
     ets_delay_us(500);
+    return err;
 }
 
 void LCD_writeUint(uint32_t num)

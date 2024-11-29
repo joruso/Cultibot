@@ -23,6 +23,18 @@ void vTaskControl(void *pvParameters);
 
 static uint8_t h_on, m_on, h_off, m_off;
 
+void load_parameters_from_nvs(){
+	
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_MIN, &m_on));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_MIN, &m_off));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_HOUR, &h_on));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_HOUR, &h_off));
+
+	//hay que cargar todas las memorias y ver como guardo el proximo riego --> wday
+
+
+}
+
 void climate_init()
 {
 	// Inizializamos la conexcion con los sensores y con el otro ESP
@@ -42,17 +54,7 @@ void climate_init()
 	xTaskCreate(vTaskControl, TAG, STACK_SIZE, NULL, tskIDLE_PRIORITY, &xHandle);
 }
 
-void load_parameters_from_nvs(){
-	
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_MIN, &m_on));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_MIN, &m_off));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_HOUR, &h_on));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_HOUR, &h_off));
 
-	//hay que cargar todas las memorias y ver como guardo el proximo riego --> wday
-
-
-}
 
 void off_light()
 {
@@ -83,6 +85,6 @@ void vTaskControl(void *pvParameters)
 		{
 			off_light();
 		}
-		vTaskDelay(INTERVAL_refresh_sec * CONFIG_FREERTOS_HZ);
+		vTaskDelay(INTERVAL_REFRESH_SEC * CONFIG_FREERTOS_HZ);
 	}
 }
