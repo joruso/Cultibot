@@ -7,6 +7,7 @@
 #include <esp_log.h>
 #include "nvs_manager.h"
 #include "nvs.h"
+#include "espnow_water.h"
 
 #include "esp_timer.h"
 #define TIMEOUT 10000000         // 10s
@@ -74,6 +75,21 @@ void refresh_info_screen()
     LCD_setCursor(0, 1);
     strfTemp_hum(strtime_buffer);
     LCD_writeStr(strtime_buffer);
+
+    static uint8_t lastState;
+    if (espnow_is_conected()!= lastState){
+        lastState = espnow_is_conected();
+        LCD_setCursor(0,2);
+        if (lastState == 0)
+        {
+            LCD_writeStr("Dev water not found");
+        }else{
+            LCD_writeStr("                    ");
+        }
+    }
+        
+
+
 }
 
 static int8_t show_menu(char *names[])
@@ -92,7 +108,7 @@ static int8_t show_menu(char *names[])
 
     LCD_clearScreen();
     LCD_writeChar('>');
-    for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
+    for (uint8_t i = 0; i < LCD_ROW && i <= number_items - 1; i++)
     {
         LCD_setCursor(2, i);
         LCD_writeStr(names[i]);
@@ -119,7 +135,7 @@ static int8_t show_menu(char *names[])
                         extraPos++;
 
                         LCD_clearScreen();
-                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
+                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items - 1; i++)
                         {
                             LCD_setCursor(2, i);
                             // ESP_LOGI(TAG, "posi: %i, value:", i + extraPos);
@@ -147,7 +163,7 @@ static int8_t show_menu(char *names[])
                         extraPos--;
 
                         LCD_clearScreen();
-                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items-1; i++)
+                        for (uint8_t i = 0; i < LCD_ROW && i <= number_items - 1; i++)
                         {
                             LCD_setCursor(2, i);
                             // ESP_LOGI(TAG, "posi: %i, value:", i + extraPos);
@@ -176,6 +192,7 @@ static int8_t show_menu(char *names[])
 
     if (lastchange + TIMEOUT < esp_timer_get_time() || sig_estado == 0) // si se llega al timeout se vuelve al estado inicial
     {
+        climate_load_parameters_from_nvs();
         return -1;
     }
     if (sig_estado % 10 == 0)
@@ -275,9 +292,10 @@ esp_err_t mod_variable(char *text, char *var, uint8_t min_value, uint8_t max_val
 
 void init_menu()
 {
-    
-    if (LCD_init() != ESP_OK) {
-        ESP_LOGE (TAG, "Menu no inicilizado, falla conexion I2C");
+
+    if (LCD_init() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Menu no inicilizado, falla conexion I2C");
         return;
     }
     LCD_clearScreen();
@@ -300,7 +318,7 @@ void init_menu()
             break;
 
         case 0: // MUESTRA LAS LISTA DE OPCIONES
-            estado = show_menu((char *[]){"Volver", "Riego", "Temperatura", "Humedad", "Iluminacion", "Hora", "Mostrar param", NULL});
+            estado = show_menu((char *[]){"Volver", "Riego", "Temperatura", "Humedad", "Iluminacion", "Ventiladores", "Hora", "Mostrar param", NULL});
             break;
 
         case 1: // MENU DEL RIEGO
@@ -314,15 +332,15 @@ void init_menu()
             estado = 1;
             break;
         case 12:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 1 ml*10L", FERTI_1_ML, 1, 100));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 1 ml*1L", FERTI_1_ML, 1, 20));
             estado = 1;
             break;
         case 13:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 2 ml*10L", FERTI_2_ML, 1, 100));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 2 ml*1L", FERTI_2_ML, 1, 20));
             estado = 1;
             break;
         case 14:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 3 ml*10L", FERTI_3_ML, 1, 100));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 3 ml*1L", FERTI_3_ML, 1, 20));
             estado = 1;
             break;
         case 15:
@@ -336,12 +354,25 @@ void init_menu()
             estado = 1;
             break;
         case 17:
-            ESP_ERROR_CHECK(mod_variable("Numero de pausas", NUM_INTERVAL_IRRIGATION, 0, 10));
-            ESP_ERROR_CHECK(mod_variable("Min entre huecos", INTERVAL_IRRI_MIN, 0, 10));
+            // ESP_ERROR_CHECK(mod_variable("Numero de pausas", NUM_INTERVAL_IRRIGATION, 0, 10));
+            // ESP_ERROR_CHECK(mod_variable("Min entre huecos", INTERVAL_IRRI_MIN, 0, 10));
             estado = 1;
             break;
-        case 18:// hacer el test de riego
-            
+        case 18: // hacer el test de riego
+            if (espnow_is_conected() != 0)
+            {
+                espnow_test();
+            }
+            else
+            {
+                LCD_clearScreen();
+                LCD_setCursor(2,1);
+                LCD_writeStr("Riego desconectado");
+                LCD_setCursor (2,2);
+                LCD_writeStr(" o inalcanzable");
+                vTaskDelay( 1600/portTICK_PERIOD_MS);
+            }
+
             estado = 1;
             break;
         case 2: // MENU DE LA TEMPERATURA
@@ -367,25 +398,51 @@ void init_menu()
             estado = show_menu((char *[]){"Volver", "Humedad Dia", "Humedad Noche", NULL});
             break;
         case 31:
-            ESP_ERROR_CHECK(mod_variable("Hum Relativa Dia", HUMEDAD_REL_DAY, 10, 90));
+            ESP_ERROR_CHECK(mod_variable("Hum Relativa Dia", HUMEDAD_REL_DAY, 10, 100));
             estado = 3;
             break;
         case 32:
-            ESP_ERROR_CHECK(mod_variable("Hum Relativa Noche", HUMEDAD_REL_NIGHT, 10, 90));
+            ESP_ERROR_CHECK(mod_variable("Hum Relativa Noche", HUMEDAD_REL_NIGHT, 10, 100));
             estado = 3;
             break;
         case 4: // MENU DE LA ILUMINACION
             estado = show_menu((char *[]){"Volver", "Encendido luces", "Apagado luces", NULL});
             break;
         case 41:
-            ESP_ERROR_CHECK (mod_variable("Hora encendido",LIGHT_ON_HOUR, 0,23));
-            ESP_ERROR_CHECK (mod_variable("Min encendido",LIGHT_ON_MIN, 0,59));
+            ESP_ERROR_CHECK(mod_variable("Hora encendido", LIGHT_ON_HOUR, 0, 23));
+            ESP_ERROR_CHECK(mod_variable("Min encendido", LIGHT_ON_MIN, 0, 59));
             estado = 4;
             break;
         case 42:
-            ESP_ERROR_CHECK (mod_variable("Hora apagado",LIGHT_OFF_HOUR, 0,23));
-            ESP_ERROR_CHECK (mod_variable("Min apagado",LIGHT_OFF_MIN, 0,59));
+            ESP_ERROR_CHECK(mod_variable("Hora apagado", LIGHT_OFF_HOUR, 0, 23));
+            ESP_ERROR_CHECK(mod_variable("Min apagado", LIGHT_OFF_MIN, 0, 59));
             estado = 4;
+            break;
+        case 5: // MENU DE LOS VENTILADORES
+            estado = show_menu((char *[]){"Volver", "Ventilador interno", "Extractores", NULL});
+            break;
+        case 51:
+            uint8_t *aux;
+            aux = (uint8_t *)malloc(sizeof(uint8_t));
+            if (aux == NULL)
+            {
+                free(aux);
+                assert(0);
+            }
+            ESP_ERROR_CHECK(mod_variable("0-OFF 1-ON 2-ON/OFF", INDOOR_VENT_STATUS, 0, 2));
+            ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_STATUS, aux));
+            if (*aux == 2)
+            {
+                ESP_ERROR_CHECK(mod_variable("Min encendido", INDOOR_VENT_M_ON, 0, 250));
+                ESP_ERROR_CHECK(mod_variable("Min apagado", INDOOR_VENT_M_OFF, 0, 250));
+            }
+            free(aux);
+            estado = 5;
+            break;
+        case 52:
+            ESP_ERROR_CHECK(mod_variable("Hora apagado", LIGHT_OFF_HOUR, 0, 23));
+            ESP_ERROR_CHECK(mod_variable("Min apagado", LIGHT_OFF_MIN, 0, 59));
+            estado = 5;
             break;
         default:
             break;

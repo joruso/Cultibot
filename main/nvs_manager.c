@@ -41,7 +41,7 @@ esp_err_t nvs_get_value_num_u32(const char *key, uint32_t *value)
     esp_err_t err = nvs_get_u32(nvs_handle_manager, key, value);
     if (err == ESP_ERR_NVS_NOT_FOUND)
     {
-        return nvs_set_value_num_u32(key, 1000);
+        return nvs_set_value_num_u32(key, 1);
     }
     return err;
 }
@@ -51,7 +51,7 @@ esp_err_t nvs_get_value_num_u8(const char *key, uint8_t *value)
     esp_err_t err = nvs_get_u8(nvs_handle_manager, key, value);
     if (err == ESP_ERR_NVS_NOT_FOUND)
     {
-        return nvs_set_value_num_u8(key, 10);
+        return nvs_set_value_num_u8(key, 1);
     }
     return err;
 }

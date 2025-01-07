@@ -31,7 +31,7 @@ esp_err_t get_dash_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_send(req, dash_start, HTTPD_RESP_USE_STRLEN);
-    ESP_LOGI(TAG,"recibida peticion get dash");
+    ESP_LOGI(TAG,"Received get request");
     return ESP_OK;
 }
 
@@ -50,7 +50,7 @@ esp_err_t post_config_wifi_handler(httpd_req_t *req)
     password = (char *)malloc(64 * sizeof(char));
     if (ssid == NULL || password == NULL || buff == NULL)
     {
-        ESP_LOGE(TAG, "Error al asignar memoria");
+        ESP_LOGE(TAG, "Malloc fail");
         return ESP_ERR_NO_MEM;
     }
 

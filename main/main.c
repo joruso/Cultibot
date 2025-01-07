@@ -79,8 +79,7 @@ void init_drivers()
 	}
 
 
-	ESP_LOGI(TAG, "wifi inicializados");
-	climate_init();
+	ESP_LOGI(TAG, "Wifi initialized");
 
 	// nvs_manager_deinit();
 }
@@ -88,11 +87,11 @@ void init_drivers()
 void app_main(void)
 {
 	init_drivers();
-	ESP_LOGI(TAG, "Drivers inicializados");
+	ESP_LOGI(TAG, "Drivers initialized");
 	start_webserver();
-	ESP_LOGI(TAG, "Servidor inicializado");
+	ESP_LOGI(TAG, "Server initialized");
 	climate_init();
-	ESP_LOGI(TAG, "Control Climatico inicializado");
+	ESP_LOGI(TAG, "Climate control initialized");
 	init_menu(); 
 
 #ifdef TEST_MEMORIA

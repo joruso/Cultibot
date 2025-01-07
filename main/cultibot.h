@@ -18,10 +18,10 @@
 #define NEXT_IRRI_HOUR "hour_irrigation"           
 #define NEXT_IRRI_DAY "day_irrigation"             
 #define HOURS_BETWEEN_IRRIGATIONS "hours_btw_irri" 
-#define INTERVAL_IRRI_MIN "interval_irri"          
-#define NUM_INTERVAL_IRRIGATION "num_irri_inter"   
+//#define INTERVAL_IRRI_MIN "interval_irri"          
+//#define NUM_INTERVAL_IRRIGATION "num_irri_inter"   
 
-#define TEMP_DAY "temperature_day"      
+#define TEMP_DAY "temp_day"      
 #define TEMP_NIGHT "temp_night"         
 #define HISTERESIS_DAY "histeresis_day" 
 #define HISTERESIS_NIGHT "hister_night" 
@@ -34,10 +34,16 @@
 #define LIGHT_ON_HOUR "light_on_h"   
 #define LIGHT_OFF_HOUR "light_off_h" 
 
+#define INDOOR_VENT_STATUS "ind_v_status" // 0-> apagado 1->encendido 2->intervalo
+#define INDOOR_VENT_M_ON "ind_v_m_on"
+#define INDOOR_VENT_M_OFF "ind_v_m_off"  
+
 #define WIFI_SSID "wifi_ssid"   // Tiene una longuitud de 32 bits
 #define WIFI_PASS "wifi_pass"   // Tiene una longuitud de 64 bits
 
 #define ESP_WIFI_SSID "Cultibot"
 #define ESP_WIFI_PASS "hola1234"
+
+void climate_load_parameters_from_nvs(void);
 
 #endif

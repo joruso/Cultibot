@@ -9,13 +9,23 @@
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
 #endif
 
+#define BROADCAST_DIR \
+    (uint8_t[ESP_NOW_ETH_ALEN]) { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
+
+#define ESPNOW_TIMEOUT_S 20
+#define ESPNOW_RETRYTIMEOUT_S 1
+#define ESPNOW_MAX_RETRIES 3
+
 typedef enum
 {
-    COMANDO_ACK,
-    COMANDO_PAIR,
-    COMANDO_ALIVE,
-    COMANDO_TEST_10_SEG,
-    COMANDO_SET_IRRIGATION,
+    COMANDO_ACK,                // BIDIRECTIONAL
+    COMANDO_PAIR,               // MAIN -> AUX
+    COMANDO_ALIVE,              // AUX -> MAIN
+    COMANDO_TEST_10_SEG,        // MAIN -> AUX
+    COMANDO_SET_IRRIGATION,     // MAIN -> AUX
+    COMANDO_IRRIGATE,           // MAIN -> AUX
+    COMANDO_IRRIGATE_OK,        // AUX -> MAIN   
+    COMANDO_IRRIGATE_FAIL,      // AUX -> MAIN
 } tipoComando;
 
 typedef struct __attribute__((packed))
@@ -29,10 +39,10 @@ typedef struct __attribute__((packed))
 typedef struct __attribute__((packed))
 {
     uint8_t comando;
-    union
-    {
-        parameterIrrigation_t paramIrrigation;
-    };
+    uint16_t seq_num;
+    uint16_t crc;
+    parameterIrrigation_t paramIrrigation;
+    
 } data_water_t;
 
 typedef struct __attribute__((packed))

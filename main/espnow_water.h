@@ -2,15 +2,23 @@
 #define MAIN_ESPNOW_WATER_H_
 
 #include "esp_err.h"
-
-#define ESPNOW_QUEUE_SIZE 6
-#define CONFIG_ESPNOW_CHANNEL 3
-#define ESPNOW_WIFI_IF WIFI_IF_AP
+#include "protocolWater.h"
 
 esp_err_t espnow_water_init();
+
+
+
 void espnow_test();
-void calibrate_pulses_water();
-//void espnow_irrigate(parameterIrrigation_t parameter_send);
+
+
+void calibrate_pulses_water(parameterIrrigation_t parameter_send);
+
+/**
+ * @brief Stops the espnow_task.
+ * 
+ * This function send to espnow queue a irrigation comand.
+ */
+void espnow_irrigate(parameterIrrigation_t parameter_send);
 
 /**
  * @brief Checks if the ESP32 is paired with another ESP device as a slave.

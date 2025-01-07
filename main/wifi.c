@@ -134,7 +134,7 @@ esp_err_t wifi_connect_sta(void)
     wifi_pass = (char *)malloc(pass_tam * sizeof(char));
     if (wifi_ssid == NULL || wifi_pass == NULL)
     {
-        ESP_LOGE(TAG, "Error en la asignación de memoria");
+        ESP_LOGE(TAG, "Malloc fail");
         free(wifi_ssid);
         free(wifi_pass);
         return ESP_ERR_NO_MEM;
@@ -179,7 +179,7 @@ esp_err_t wifi_connect_sta(void)
 
     if (bits & WIFI_CONNECTED_BIT)
     {
-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+        ESP_LOGI(TAG, "Connected to ap SSID:%s password:%s",
                  wifi_ssid, wifi_pass);
         err = ESP_OK;
     }

@@ -90,10 +90,7 @@ void obtain_time(void)
     localtime_r(&now, &timeinfo);
 
     esp_netif_sntp_deinit();
-
-
-
-
+    
     tzset();
 }
 
