@@ -131,6 +131,7 @@ static esp_err_t espnow_send_ACK(packet_water_t *packet)
         else if (seq_packet_count - 1 == packet->data.seq_num)
         {
             ESP_LOGW(TAG, "Received secuence number equal to ours number-1");
+            packet->data.seq_num = seq_packet_count;
             for (int i = 0; i < ESPNOW_MAX_RETRIES; i++)
             {
                 err = esp_now_send((uint8_t *)packet->mac_addr, (uint8_t *)&packet->data, sizeof(packet->data));

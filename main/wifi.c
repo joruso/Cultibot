@@ -18,7 +18,7 @@
 
 #include "esp_mac.h"
 
-#define WIFI_MAXIMUM_RETRY 8
+#define WIFI_MAXIMUM_RETRY 4
 
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
@@ -156,10 +156,17 @@ esp_err_t wifi_connect_sta(void)
     };
     s_retry_num = 0;
     //ESP_LOGI(TAG, "%u", s_retry_num);
+    //char *wifi_ssid_test = "GalisteoU";
+    //char *wifi_pass_test = "Holahola1";
+
+    //memcpy(wifi_config_apsta.sta.ssid,      wifi_ssid_test, strlen(wifi_ssid_test));
+    //memcpy(wifi_config_apsta.sta.password,  wifi_pass_test, strlen(wifi_pass_test));
+
     memcpy(wifi_config_apsta.sta.ssid, wifi_ssid, ssid_tam);
     memcpy(wifi_config_apsta.sta.password, wifi_pass, pass_tam);
 
-    //ESP_LOGI(TAG, "%s", wifi_config_sta.sta.password);
+    ESP_LOGI(TAG, "%s", wifi_config_apsta.sta.ssid);
+    ESP_LOGI(TAG, "%s", wifi_config_apsta.sta.password);
 
     xEventGroupClearBits(s_wifi_event_group,WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_apsta));
@@ -194,13 +201,14 @@ esp_err_t wifi_connect_sta(void)
             esp_netif_destroy_default_wifi(netif_ptr);
             netif_ptr = NULL;
         };
+
         netif_ptr = esp_netif_create_default_wifi_ap();
 
         wifi_config_t wifi_config_apsta = {
             .ap = {
                 .ssid = ESP_WIFI_SSID,
                 .ssid_len = strlen(ESP_WIFI_SSID),
-                //.channel = 1,
+                .channel = 1,
                 .ssid_hidden = 0,
                 .password = ESP_WIFI_PASS,
                 .max_connection = MAX_STA_CONN,

@@ -15,8 +15,6 @@
 
 // Definition of basics for the module
 
-
-
 #define STACK_SIZE 2048
 const static char *TAG = "AM2302";
 
@@ -166,22 +164,34 @@ void vTaskSensor(void *pvParameters)
 	for (;;)
 	{
 		err = readDHT();
-		if (err == ESP_ERR_TIMEOUT || err == ESP_ERR_INVALID_RESPONSE){
-			humidity=-1;
+		if (err == ESP_ERR_TIMEOUT || err == ESP_ERR_INVALID_RESPONSE)
+		{
+			humidity = -1;
+			temperature = -1;
 		}
 		vTaskDelay(INTERVAL_READ_sec * CONFIG_FREERTOS_HZ);
 	}
 }
 
-float get_temperature() { return temperature; }
-float get_rel_humidity() { return humidity; }
+float get_temperature()
+{
+	return temperature;
+}
+float get_rel_humidity()
+{
+	return humidity;
+}
 
-size_t strfTemp_hum(char * str){
-	if (humidity == -1){
-		sprintf(str,"ERR reading sensor");
-	}else{
-		sprintf(str,"T: %.1f C Hr: %.1f",temperature,humidity);
+size_t strfTemp_hum(char *str)
+{
+	if (humidity == -1)
+	{
+		sprintf(str, "ERR reading sensor");
 	}
-	
+	else
+	{
+		sprintf(str, "T: %.1f C Hr: %.1f", temperature, humidity);
+	}
+
 	return sizeof(str);
 }

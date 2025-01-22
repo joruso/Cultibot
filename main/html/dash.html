@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Temperatura y Humedad</title>
+    <title>Dashboard</title>
     <style>
         /* Estilos generales */
         body {
@@ -126,31 +126,45 @@
         </div>
     </div>
 
-    <script>
-        const sidebar = document.getElementById("sidebar");
-        const content = document.getElementById("content");
-        const menuToggle = document.getElementById("menuToggle");
 
-        menuToggle.addEventListener("click", () => {
-            sidebar.classList.toggle("open");
-            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
-        });
+</body>
+<script>
+    const sidebar = document.getElementById("sidebar");
+    const content = document.getElementById("content");
+    const menuToggle = document.getElementById("menuToggle");
+    const url = `${window.location.origin}/info_json`;
 
-        // Simulación de datos de temperatura y humedad
-        function updateData() {
-            const temperature = Math.floor(Math.random() * 10) + 20; // Genera un valor aleatorio de 20 a 30
-            const humidity = Math.floor(Math.random() * 40) + 30;    // Genera un valor aleatorio de 30 a 70
+    menuToggle.addEventListener("click", () => {
+        sidebar.classList.toggle("open");
+        content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+    });
 
-            document.getElementById("temperature").textContent = temperature;
-            document.getElementById("humidity").textContent = humidity;
-        }
-        document.getElementById('config_btn').onclick = function () {
-            window.location.href = `${window.location.origin}/config`;
+    document.getElementById('config_btn').onclick = function () {
+        window.location.href = `${window.location.origin}/config`;
+    };
+
+
+    async function updateData() {
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            const jsonData = await response.json();
+
+            //console.log(jsonData);
+
+            document.getElementById("temperature").textContent = parseFloat(jsonData.temperature.toFixed(1));
+            document.getElementById("humidity").textContent = parseFloat(jsonData.rel_humidity.toFixed(1));
+        } catch (error) {
+            console.error('Error al obtener los datos:', error);
         };
 
-        setInterval(updateData, 5000);
-        updateData();
-    </script>
-</body>
+
+    }
+    setInterval(updateData, 5000);
+    updateData();
+</script>
 
 </html>
