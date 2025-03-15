@@ -12,7 +12,8 @@
 
 
 #include <time.h>
+#include <esp_err.h>
 
-void obtain_time();
+esp_err_t obtain_time();
 
 #endif /* MAIN_SNTP_H_ */

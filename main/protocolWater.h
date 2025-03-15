@@ -18,14 +18,14 @@
 
 typedef enum
 {
-    COMANDO_ACK,                // BIDIRECTIONAL
-    COMANDO_PAIR,               // MAIN -> AUX
-    COMANDO_ALIVE,              // AUX -> MAIN
-    COMANDO_TEST_10_SEG,        // MAIN -> AUX
-    COMANDO_SET_IRRIGATION,     // MAIN -> AUX
-    COMANDO_IRRIGATE,           // MAIN -> AUX
-    COMANDO_IRRIGATE_OK,        // AUX -> MAIN   
-    COMANDO_IRRIGATE_FAIL,      // AUX -> MAIN
+    COMANDO_ACK,
+    COMANDO_PAIR,
+    COMANDO_ALIVE,
+    COMANDO_TEST,
+    COMANDO_SET_IRRIGATION,
+    COMANDO_IRRIGATE,
+    COMANDO_IRRIGATE_OK,
+    COMANDO_IRRIGATE_FAIL,
 } tipoComando;
 
 typedef struct __attribute__((packed))
@@ -42,13 +42,19 @@ typedef struct __attribute__((packed))
     uint16_t seq_num;
     uint16_t crc;
     parameterIrrigation_t paramIrrigation;
-    
 } data_water_t;
+
+typedef enum
+{
+    SEND_ESPNOW,
+    RECV_ESPNOW
+} event_type_t;
 
 typedef struct __attribute__((packed))
 {
     uint8_t mac_addr [ESP_NOW_ETH_ALEN];
     data_water_t data;
+    event_type_t id;
 } packet_water_t;
 
 

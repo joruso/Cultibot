@@ -10,15 +10,19 @@
 #include "cultibot.h"
 #include "wifi.h"
 #include "nvs_manager.h"
-#include "AM2302.h"
 #include "cJSON.h"
 #include <math.h>
+#include "sntp.h"
+#include "espnow_water.h"
 
 extern const char dash_start[] asm("_binary_dash_html_start");
 extern const char dash_end[] asm("_binary_dash_html_end");
 
-extern const char config_start[] asm("_binary_config2_html_start");
-extern const char config_end[] asm("_binary_config2_html_end");
+extern const char config_start[] asm("_binary_config_html_start");
+extern const char config_end[] asm("_binary_config_html_end");
+
+extern const char riego_start[] asm("_binary_riego_html_start");
+extern const char riego_end[] asm("_binary_riego_html_end");
 
 httpd_handle_t server = NULL;
 
@@ -30,7 +34,141 @@ esp_err_t get_dash_handler(httpd_req_t *req)
     const uint32_t len_dash = dash_end - dash_start;
     return httpd_resp_send(req, dash_start, len_dash);
 }
+esp_err_t get_config_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    const uint32_t len_confi = config_end - config_start;
+    return httpd_resp_send(req, config_start, len_confi);
+}
+esp_err_t get_riego_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/html");
+    const uint32_t len_confi = riego_end - riego_start;
+    return httpd_resp_send(req, riego_start, len_confi);
+}
 
+esp_err_t post_riego_json_handler(httpd_req_t *req)
+{
+    esp_err_t err;
+    char *buff;
+    int recv_len = req->content_len;
+
+    buff = (char *)malloc((recv_len) * sizeof(char));
+    if (buff == NULL)
+    {
+        ESP_LOGE(TAG, "Malloc buff fail");
+        free(buff);
+        return ESP_ERR_NO_MEM;
+    }
+
+    int ret = httpd_req_recv(req, buff, recv_len);
+    if (ret <= 0)
+    {
+        if (ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
+            httpd_resp_send_408(req);
+        }
+        free(buff);
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "%s", buff);
+
+    cJSON *aux, *root;
+
+    root = cJSON_Parse(buff);
+
+    aux = cJSON_GetObjectItem(root, "comando");
+    if (cJSON_IsNumber(aux))
+    {
+        uint8_t value = cJSON_GetNumberValue(aux);
+        switch (value)
+        {
+        case COMANDO_TEST:
+            aux = cJSON_GetObjectItem(root, "test_seconds");
+            if (cJSON_IsNumber(aux))
+            {
+                value = cJSON_GetNumberValue(aux);
+                err = espnow_test(value);
+                if (err == ESP_ERR_ESPNOW_NOT_FOUND)
+                {
+                    httpd_resp_send_custom_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Not conected Water");
+                }
+            }
+
+            break;
+        case COMANDO_IRRIGATE:
+            /* code */
+            break;
+
+        case COMANDO_SET_IRRIGATION:
+            parameterIrrigation_t parameters;
+            aux = cJSON_GetObjectItem(root, FERTI_1_ML);
+            if (cJSON_IsNumber(aux))
+            {
+                value = cJSON_GetNumberValue(aux);
+                if (value > 0)
+                {
+                    parameters.aditive1_ml_per_L = value;
+                }
+            }else{
+                parameters.aditive1_ml_per_L = 0;
+            }
+            aux = cJSON_GetObjectItem(root, FERTI_2_ML);
+            if (cJSON_IsNumber(aux))
+            {
+                value = cJSON_GetNumberValue(aux);
+                if (value > 0)
+                {
+                    parameters.aditive2_ml_per_L = value;
+                }
+            }else{
+                parameters.aditive2_ml_per_L = 0;
+            }
+            aux = cJSON_GetObjectItem(root, FERTI_3_ML);
+            if (cJSON_IsNumber(aux))
+            {
+                value = cJSON_GetNumberValue(aux);
+                if (value > 0)
+                {
+                    parameters.aditive3_ml_per_L = value;
+                }
+            }else{
+                parameters.aditive3_ml_per_L = 0;
+            }
+            aux = cJSON_GetObjectItem(root, WATER_LITER);
+            if (cJSON_IsNumber(aux))
+            {
+                parameters.water_dl = cJSON_GetNumberValue(aux) * 10;
+            }else{
+                parameters.water_dl = 0;
+            }
+
+            err = espnow_calibrate(parameters);
+            if (err == ESP_ERR_ESPNOW_NOT_FOUND)
+            {
+                httpd_resp_send_custom_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Not conected Water");
+            }
+
+            break;
+        default:
+            httpd_resp_send_custom_err(req, HTTPD_400, "Error comand");
+            free(buff);
+            free(root);
+            free(aux);
+            return ESP_ERR_INVALID_ARG;
+            break;
+        }
+    }
+
+    httpd_resp_send_custom_err(req, HTTPD_200, "OK");
+
+    free(buff);
+    free(root);
+    free(aux);
+
+    return ESP_OK;
+}
 esp_err_t get_config_json_handler(httpd_req_t *req)
 {
     cJSON *root = cJSON_CreateObject();
@@ -47,7 +185,7 @@ esp_err_t get_config_json_handler(httpd_req_t *req)
     }
 
     ESP_ERROR_CHECK(nvs_get_value_str(WIFI_SSID, wifi_ssid, &ssid_tam));
-    cJSON_AddStringToObject(root, "SSID", wifi_ssid);
+    cJSON_AddStringToObject(root, WIFI_SSID, wifi_ssid);
 
     uint8_t num, num2;
     ESP_ERROR_CHECK(nvs_get_value_num_u8(WATER_LITER, &num));
@@ -56,17 +194,17 @@ esp_err_t get_config_json_handler(httpd_req_t *req)
 
     lit = round(lit * 10) / 10;
 
-    ESP_LOGI(TAG,"%f",lit);
-    cJSON_AddNumberToObject(root, "liters", lit);
+    ESP_LOGI(TAG, "%f", lit);
+    cJSON_AddNumberToObject(root, WATER_LITER, lit);
 
     ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_1_ML, &num));
-    cJSON_AddNumberToObject(root, "additive1", num);
+    cJSON_AddNumberToObject(root, FERTI_1_ML, num);
 
     ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_2_ML, &num));
-    cJSON_AddNumberToObject(root, "additive2", num);
+    cJSON_AddNumberToObject(root, FERTI_2_ML, num);
 
     ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_3_ML, &num));
-    cJSON_AddNumberToObject(root, "additive3", num);
+    cJSON_AddNumberToObject(root, FERTI_3_ML, num);
 
     char str[10];
     ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_HOUR, &num));
@@ -79,6 +217,13 @@ esp_err_t get_config_json_handler(httpd_req_t *req)
     snprintf(str, sizeof(str), "%02u:%02u", num, num2);
     cJSON_AddStringToObject(root, "HourMinOFF", str);
 
+    ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_DAY, &num));
+    cJSON_AddNumberToObject(root, LAST_IRRI_DAY, num);
+    ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_HOUR, &num));
+    cJSON_AddNumberToObject(root, LAST_IRRI_HOUR, num);
+    ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MIN, &num));
+    cJSON_AddNumberToObject(root, LAST_IRRI_MIN, num);
+
     const char *buff = cJSON_Print(root);
     ESP_LOGI(TAG, "%s", buff);
 
@@ -86,24 +231,17 @@ esp_err_t get_config_json_handler(httpd_req_t *req)
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, buff, HTTPD_RESP_USE_STRLEN);
 }
-
-esp_err_t get_config_handler(httpd_req_t *req)
-{
-    httpd_resp_set_type(req, "text/html");
-    const uint32_t len_confi = config_end - config_start;
-    return httpd_resp_send(req, config_start, len_confi);
-}
-
-esp_err_t post_config_handler(httpd_req_t *req)
+esp_err_t post_config_json_handler(httpd_req_t *req)
 {
 
     char *buff;
     int recv_len = req->content_len;
 
-    buff = (char *)malloc((recv_len + 1) * sizeof(char));
+    buff = (char *)malloc((recv_len) * sizeof(char));
     if (buff == NULL)
     {
         ESP_LOGE(TAG, "Malloc buff fail");
+        free(buff);
         return ESP_ERR_NO_MEM;
     }
 
@@ -114,6 +252,7 @@ esp_err_t post_config_handler(httpd_req_t *req)
         {
             httpd_resp_send_408(req);
         }
+        free(buff);
         return ESP_FAIL;
     }
 
@@ -123,50 +262,51 @@ esp_err_t post_config_handler(httpd_req_t *req)
 
     root = cJSON_Parse(buff);
 
-    aux = cJSON_GetObjectItem(root, "ssid");
+    aux = cJSON_GetObjectItem(root, WIFI_SSID);
     if (cJSON_IsString(aux))
     {
         ESP_LOGI(TAG, "%s", aux->valuestring);
         ESP_ERROR_CHECK(nvs_set_value_str(WIFI_SSID, aux->valuestring));
 
-        aux = cJSON_GetObjectItem(root, "password");
+        aux = cJSON_GetObjectItem(root, WIFI_PASS);
         if (cJSON_IsString(aux))
         {
             ESP_LOGI(TAG, "%s", aux->valuestring);
             ESP_ERROR_CHECK(nvs_set_value_str(WIFI_PASS, aux->valuestring));
 
-            wifi_connect_sta();
+            if (wifi_connect_sta() == ESP_OK)
+            {
+                obtain_time();
+            }
         }
     }
 
-    aux = cJSON_GetObjectItem(root, "liters");
+    aux = cJSON_GetObjectItem(root, WATER_LITER);
     if (cJSON_IsNumber(aux))
     {
-
-        ESP_LOGI(TAG, "%f", aux->valuedouble);
-        uint8_t liter = (uint8_t)aux->valueint;
-        ESP_LOGI(TAG, "%i", aux->valueint);
-        double temp = aux->valuedouble;
-        uint8_t deciL = (uint8_t)(10 * (temp - liter));
-        ESP_LOGI(TAG, "%i", deciL);
-
-        ESP_ERROR_CHECK(nvs_set_value_num_u8(WATER_LITER, liter));
-        ESP_ERROR_CHECK(nvs_set_value_num_u8(WATER_DECILITER,deciL));
+        float liters = cJSON_GetNumberValue(aux);
+        ESP_LOGI(TAG, "Valor en litros %f", liters);
+        uint8_t value = (uint8_t)liters;
+        ESP_LOGI(TAG, "Valor entero %u", value);
+        ESP_ERROR_CHECK(nvs_set_value_num_u8(WATER_LITER, value));
+        value = (uint8_t)((liters - value) * 10);
+        ESP_LOGI(TAG, "Valor decimal %u", value);
+        ESP_ERROR_CHECK(nvs_set_value_num_u8(WATER_DECILITER, value));
     }
 
-    aux = cJSON_GetObjectItem(root, "additive1");
+    aux = cJSON_GetObjectItem(root, FERTI_1_ML);
     if (cJSON_IsNumber(aux))
     {
         uint8_t additive = aux->valueint;
         ESP_ERROR_CHECK(nvs_set_value_num_u8(FERTI_1_ML, additive));
     }
-    aux = cJSON_GetObjectItem(root, "additive2");
+    aux = cJSON_GetObjectItem(root, FERTI_2_ML);
     if (cJSON_IsNumber(aux))
     {
         uint8_t additive = aux->valueint;
         ESP_ERROR_CHECK(nvs_set_value_num_u8(FERTI_2_ML, additive));
     }
-    aux = cJSON_GetObjectItem(root, "additive3");
+    aux = cJSON_GetObjectItem(root, FERTI_3_ML);
     if (cJSON_IsNumber(aux))
     {
         uint8_t additive = aux->valueint;
@@ -208,19 +348,12 @@ esp_err_t post_config_handler(httpd_req_t *req)
 
     return ESP_OK;
 }
-
-esp_err_t post_handler(httpd_req_t *req)
-{
-
-    return ESP_OK;
-}
-
 esp_err_t get_json_handler(httpd_req_t *req)
 {
     cJSON *root = cJSON_CreateObject();
 
-    cJSON_AddNumberToObject(root, "temperature", get_temperature());
-    cJSON_AddNumberToObject(root, "rel_humidity", get_rel_humidity());
+    cJSON_AddNumberToObject(root, "temperature", get_parameter_clima(TEMP));
+    cJSON_AddNumberToObject(root, "rel_humidity", get_parameter_clima(HUM_REL));
     const char *buff = cJSON_Print(root);
 
     // ESP_LOGI(TAG,"%s",buff);
@@ -241,26 +374,32 @@ httpd_uri_t config_get = {
     .handler = get_config_handler,
     .user_ctx = NULL};
 
+httpd_uri_t riego_get = {
+    .uri = "/riego",
+    .method = HTTP_GET,
+    .handler = get_riego_handler,
+    .user_ctx = NULL};
+
+httpd_uri_t riego_json_post = {
+    .uri = "/riego_json",
+    .method = HTTP_POST,
+    .handler = post_riego_json_handler,
+    .user_ctx = NULL};
+
 httpd_uri_t json_get = {
     .uri = "/info_json",
     .method = HTTP_GET,
     .handler = get_json_handler,
     .user_ctx = NULL};
 
-httpd_uri_t uri_post = {
-    .uri = "/uri",
-    .method = HTTP_POST,
-    .handler = post_handler,
-    .user_ctx = NULL};
-
-httpd_uri_t config_wifi_post = {
+httpd_uri_t config_json_post = {
     .uri = "/save_config",
     .method = HTTP_POST,
-    .handler = post_config_handler,
+    .handler = post_config_json_handler,
     .user_ctx = NULL};
 
-httpd_uri_t config_wifi_get = {
-    .uri = "/config/json",
+httpd_uri_t config_json_get = {
+    .uri = "/config_json",
     .method = HTTP_GET,
     .handler = get_config_json_handler,
     .user_ctx = NULL};
@@ -274,10 +413,11 @@ void start_webserver(void)
     {
         httpd_register_uri_handler(server, &dash_get);
         httpd_register_uri_handler(server, &config_get);
-        httpd_register_uri_handler(server, &uri_post);
+        httpd_register_uri_handler(server, &riego_get);
+        httpd_register_uri_handler(server, &riego_json_post);
         httpd_register_uri_handler(server, &json_get);
-        httpd_register_uri_handler(server, &config_wifi_post);
-        httpd_register_uri_handler(server, &config_wifi_get);
+        httpd_register_uri_handler(server, &config_json_post);
+        httpd_register_uri_handler(server, &config_json_get);
     }
 }
 

@@ -14,6 +14,7 @@
 #define LCD_LINEFOUR 0x54  // start of line 4
 
 #define LCD_BACKLIGHT 0x08
+#define LCD_NO_BACKLIGHT 0x00
 #define LCD_ENABLE 0x04
 #define LCD_COMMAND 0x00
 #define LCD_WRITE 0x01
@@ -75,30 +76,36 @@ esp_err_t LCD_init()
 
     // Reset the LCD controller
     err = LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND); // First part of reset sequence
-    if (err != ESP_OK) return err;
-    vTaskDelay(0.0041 * CONFIG_FREERTOS_HZ);          // 4.1 mS delay (min)
+    if (err != ESP_OK)
+        return err;
+    vTaskDelay(0.0041 * CONFIG_FREERTOS_HZ); // 4.1 mS delay (min)
     // LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND);    // second part of reset sequence
-    ets_delay_us(200);                                   // 100 uS delay (min)
-    err = LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND);    // Third time's a charm
-    if (err != ESP_OK) return err;
+    ets_delay_us(200);                                      // 100 uS delay (min)
+    err = LCD_writeNibble(LCD_FUNCTION_RESET, LCD_COMMAND); // Third time's a charm
+    if (err != ESP_OK)
+        return err;
     err = LCD_writeNibble(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Activate 4-bit mode
-    if (err != ESP_OK) return err;
-    ets_delay_us(80);                                    // 40 uS delay (min)
+    if (err != ESP_OK)
+        return err;
+    ets_delay_us(80); // 40 uS delay (min)
 
     // --- Busy flag now available ---
     // Function Set instruction
     err = LCD_writeByte(LCD_FUNCTION_SET_4BIT, LCD_COMMAND); // Set mode, lines, and font
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
     ets_delay_us(80);
 
     // Clear Display instruction
     err = LCD_writeByte(LCD_CLEAR, LCD_COMMAND); // clear display RAM
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
     vTaskDelay(0.01 * CONFIG_FREERTOS_HZ); // Clearing memory takes a bit longer
 
     // Entry Mode Set instruction
     err = LCD_writeByte(LCD_ENTRY_MODE, LCD_COMMAND); // Set desired shift characteristics
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
     ets_delay_us(80);
 
     return LCD_writeByte(LCD_DISPLAY_ON, LCD_COMMAND); // Ensure LCD is set to on
@@ -128,6 +135,19 @@ void LCD_writeStr(char *str)
     }
 }
 
+void LCD_LedScreen()
+{
+    uint8_t data = LCD_NO_BACKLIGHT & 0xF0;
+
+    i2c_master_transmit(dev_handle, &data, 1, 200);
+
+    LCD_pulseEnable(data); // Clock data into LCD
+
+    i2c_master_transmit(dev_handle, &data, 1, 200);
+
+    LCD_pulseEnable(data); // Clock data into LCD
+}
+
 void LCD_home(void)
 {
     LCD_writeByte(LCD_HOME, LCD_COMMAND);
@@ -154,7 +174,8 @@ static esp_err_t LCD_writeNibble(uint8_t nibble, uint8_t mode)
     uint8_t data = (nibble & 0xF0) | mode | LCD_BACKLIGHT;
 
     err = i2c_master_transmit(dev_handle, &data, 1, 200);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
 
     return LCD_pulseEnable(data); // Clock data into LCD
 }
@@ -164,12 +185,13 @@ static esp_err_t LCD_pulseEnable(uint8_t data)
     esp_err_t err;
     uint8_t towrite = data | LCD_ENABLE;
     err = i2c_master_transmit(dev_handle, &towrite, 1, -1);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK)
+        return err;
     ets_delay_us(1);
     towrite = (data & ~LCD_ENABLE);
     err = i2c_master_transmit(dev_handle, &towrite, 1, -1);
 
-    ets_delay_us(500);
+    ets_delay_us(50);
     return err;
 }
 

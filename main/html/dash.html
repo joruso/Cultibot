@@ -107,10 +107,9 @@
         <h2>Menú</h2>
         <ul>
             <li><button>Inicio</button></li>
-            <li><button>Temperatura</button></li>
-            <li><button>Humedad</button></li>
+            <li><button id="clime_btn">Clima</button></li>
+            <li><button id="riego_btn">Riego</button></li>
             <li><button id="config_btn">Configuración</button></li>
-            <li><button>Salir</button></li>
         </ul>
     </div>
 
@@ -142,6 +141,10 @@
     document.getElementById('config_btn').onclick = function () {
         window.location.href = `${window.location.origin}/config`;
     };
+    document.getElementById('riego_btn').onclick = function () {
+        window.location.href = `${window.location.origin}/riego`;
+    };
+
 
 
     async function updateData() {

@@ -16,5 +16,6 @@ void LCD_clearScreen(void);
 void LCD_writeChar(char c);
 void LCD_writeStr(char* str);
 void LCD_writeUint(uint32_t num);
+void LCD_LedScreen();
 
 #endif /* MAIN_I2C_LCD_H_ */

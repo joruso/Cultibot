@@ -10,5 +10,5 @@ idf_component_register(SRCS     "espnow_water.c"
                                 "server.c"
                                 "mqtt.c"
                                 
-                        EMBED_FILES html/dash.html html/config.html html/config2.html
+                        EMBED_FILES html/dash.html html/config.html html/riego.html
                         INCLUDE_DIRS ".")

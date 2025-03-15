@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración WiFi</title>
+    <title>Configuración ESP32</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -35,10 +36,10 @@
         }
 
         .config-container input[type="text"],
-        .config-container input[type="password"] {
+        .config-container input[type="password"],
+        .config-container input[type="number"] {
             width: 94%;
             padding: 8px;
-
             border: 1px solid #ccc;
             border-radius: 4px;
         }
@@ -55,7 +56,6 @@
 
         .password-container button {
             margin-left: 5px;
-
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -97,62 +97,98 @@
         }
     </style>
 </head>
+
 <body>
     <div class="config-container">
-        <h2>Configuración WiFi</h2>
-        <form id="wifiForm">
-            <label for="ssid">Nombre de Red (SSID):</label>
-            <input type="text" id="ssid" name="ssid" required>
-    
+        <h2>Configuración</h2>
+        <form id="configForm">
+            <label for="wifi_ssid">Nombre de Red (SSID):</label>
+            <input type="text" id="wifi_ssid" name="wifi_ssid" required>
+
             <label for="password">Contraseña:</label>
             <div class="password-container">
                 <input type="password" id="password" name="password" required>
                 <button type="button" onclick="togglePassword()">👁️</button>
             </div>
-    
+
+            <label for="litres_water">Litros de agua:</label>
+            <input type="number" id="litres_water" name="litres_water" step="0.1" required>
+
+            <label for="additive_1_ml">Aditivo 1 por litro:</label>
+            <input type="number" id="additive_1_ml" name="additive_1_ml" step="1" required>
+
+            <label for="additive_2_ml">Aditivo 2 por litro:</label>
+            <input type="number" id="additive_2_ml" name="additive_2_ml" step="1" required>
+
+            <label for="additive_3_ml">Aditivo 3 por litro:</label>
+            <input type="number" id="additive_3_ml" name="additive_3_ml" step="1" required>
+
+            <label for="HourMinON">Hora de encendido:</label>
+            <input type="time" id="HourMinON" name="HourMinON" required>
+
+            <label for="HourMinOFF">Hora de apagado:</label>
+            <input type="time" id="HourMinOFF" name="HourMinOFF" required>
+
             <button type="button" class="btn-save" onclick="saveConfig()">Guardar</button>
             <button type="button" class="btn-back" onclick="goBack()">Atrás</button>
         </form>
     </div>
-    
+
     <script>
-        // Alternar visibilidad de la contraseña
+
+        let originalValues = {};
+
         function togglePassword() {
             const passwordField = document.getElementById("password");
             const type = passwordField.type === "password" ? "text" : "password";
             passwordField.type = type;
         }
-    
-        // Regresar a la página anterior
+
         function goBack() {
             window.history.back();
         }
-    
+
         // Enviar datos como JSON
         async function saveConfig() {
-            // Obtener los valores del formulario
-            const ssid = document.getElementById("ssid").value;
-            const password = document.getElementById("password").value;
-    
-            // Crear el objeto JSON
-            const configData = {
-                ssid: ssid,
-                password: password,
-            };
-    
+
+            Object.entries(originalValues).forEach(([key, value]) => {
+
+                const input = document.getElementById(key);
+                if (input && String(input.value) === String(value)) {
+                    document.getElementById(key).value = "";
+                }
+            });
+
+            const form = document.getElementById("configForm");
+            const formData = new FormData(form);
+
+            const configData = {};
+
+            for (const [key, value] of formData.entries()) {
+                if (value.trim() !== "") {
+                    configData[key] = isNaN(value) ? value : parseFloat(value);
+                }
+            }
+
+            if (Object.keys(configData).length === 0) {
+                alert("No se ha introducido ningún valor nuevo. No se realizará ningún cambio.");
+                window.history.back();
+                return;
+            }
+
+
             try {
-                // Realizar la solicitud POST
-                const response = await fetch('/save_wifi', {
+                const response = await fetch('/save_config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(configData),
                 });
-    
-                // Manejar la respuesta
+
                 if (response.ok) {
                     alert('Configuración guardada correctamente');
+                    window.history.back();
                 } else {
                     alert(`Error al guardar: ${response.statusText}`);
                 }
@@ -161,6 +197,46 @@
                 alert('Ocurrió un error al enviar la configuración.');
             }
         }
+
+        const url = `${window.location.origin}/config_json`;
+
+        async function updateConfig() {
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                const jsonData = await response.json();
+
+                console.log(jsonData);
+
+                document.getElementById("wifi_ssid").value = jsonData.wifi_ssid;
+                document.getElementById("litres_water").value = jsonData.litres_water;
+                document.getElementById("additive_1_ml").value = jsonData.additive_1_ml;
+                document.getElementById("additive_2_ml").value = jsonData.additive_2_ml;
+                document.getElementById("additive_3_ml").value = jsonData.additive_3_ml;
+                document.getElementById("HourMinON").value = jsonData.HourMinON;
+                document.getElementById("HourMinOFF").value = jsonData.HourMinOFF;
+
+                originalValues = {
+                    wifi_ssid: jsonData.wifi_ssid,
+                    litres_water: jsonData.litres_water,
+                    additive_1_ml: jsonData.additive_1_ml,
+                    additive_2_ml: jsonData.additive_2_ml,
+                    additive_3_ml: jsonData.additive_3_ml,
+                    HourMinON: jsonData.HourMinON,
+                    HourMinOFF: jsonData.HourMinOFF,
+                }
+
+            } catch (error) {
+                console.error('Error al obtener los datos:', error);
+            };
+        }
+
+        updateConfig();
+
     </script>
 </body>
+
 </html>

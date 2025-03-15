@@ -1,10 +1,3 @@
-/*
- * AM2302.c
- *
- *  Created on: 12 mar 2024
- *      Author: Joruso
- */
-
 #include "AM2302.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -180,18 +173,4 @@ float get_temperature()
 float get_rel_humidity()
 {
 	return humidity;
-}
-
-size_t strfTemp_hum(char *str)
-{
-	if (humidity == -1)
-	{
-		sprintf(str, "ERR reading sensor");
-	}
-	else
-	{
-		sprintf(str, "T: %.1f C Hr: %.1f", temperature, humidity);
-	}
-
-	return sizeof(str);
 }

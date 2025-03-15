@@ -17,7 +17,7 @@
 #include "wifi.h"
 #include "cultibot.h"
 #include "sntp.h"
-
+#include "mqtt.h"
 #include "server.h"
 #include "climate_control.h"
 #include "menu_LCD.h"
@@ -63,21 +63,18 @@ void init_drivers()
 	esp_err_t err;
 	ESP_ERROR_CHECK(nvs_manager_init());
 
-	// ESP_ERROR_CHECK(nvs_set_value_str(WIFI_SSID,"JORUSO 7454"));
-	// ESP_ERROR_CHECK(nvs_set_value_str(WIFI_PASS,"hola1234"));
-
+	setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1); // Configuro la zona horaria a la de españa
 	err = wifi_init();
 
 	if (err == ESP_OK)
 	{
-		obtain_time();
-		setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1);
+		ESP_ERROR_CHECK(obtain_time());
+		init_mqtt();
 	}
 	else if (err != ESP_ERR_WIFI_NOT_CONNECT)
 	{
 		ESP_ERROR_CHECK(err);
 	}
-
 
 	ESP_LOGI(TAG, "Wifi initialized");
 
@@ -92,13 +89,13 @@ void app_main(void)
 	ESP_LOGI(TAG, "Server initialized");
 	climate_init();
 	ESP_LOGI(TAG, "Climate control initialized");
-	init_menu(); 
+	init_menu();
 
 #ifdef TEST_MEMORIA
 	loop();
 #endif
 	while (1)
 	{
-		vTaskDelay (10000*portTICK_PERIOD_MS);
+		vTaskDelay(10000 * portTICK_PERIOD_MS);
 	}
 }

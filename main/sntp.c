@@ -11,7 +11,7 @@
 
 static const char *TAG = "NTP";
 
-void obtain_time(void)
+esp_err_t obtain_time(void)
 {
 
 #if LWIP_DHCP_GET_NTP_SRV
@@ -82,7 +82,9 @@ void obtain_time(void)
     struct tm timeinfo = { 0 };
     int retry = 0;
     const int retry_count = 15;
-    while (esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS) == ESP_ERR_TIMEOUT && ++retry < retry_count) {
+    esp_err_t err = esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS);
+    while (err == ESP_ERR_TIMEOUT && ++retry < retry_count) {
+        err = esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
     }
 
@@ -92,5 +94,6 @@ void obtain_time(void)
     esp_netif_sntp_deinit();
     
     tzset();
+    return err;
 }
 

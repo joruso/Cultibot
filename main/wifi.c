@@ -27,7 +27,7 @@
 
 // Grupo de flag de eventos para manejar los eventos del Driver
 static EventGroupHandle_t s_wifi_event_group;
-esp_netif_t * netif_ptr = NULL;
+esp_netif_t *netif_ptr = NULL;
 
 static const char *TAG = "wifi station";
 static int s_retry_num = 0;
@@ -89,7 +89,6 @@ esp_err_t wifi_init(void)
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -114,7 +113,8 @@ esp_err_t wifi_init(void)
 esp_err_t wifi_connect_sta(void)
 {
     stop_espnow_task();
-    if (netif_ptr != NULL){
+    if (netif_ptr != NULL)
+    {
         ESP_ERROR_CHECK(esp_wifi_stop());
         esp_netif_destroy_default_wifi(netif_ptr);
         netif_ptr = NULL;
@@ -122,7 +122,6 @@ esp_err_t wifi_connect_sta(void)
 
     netif_ptr = esp_netif_create_default_wifi_sta();
     esp_err_t err;
-
 
     char *wifi_ssid, *wifi_pass;
     size_t ssid_tam, pass_tam;
@@ -143,7 +142,6 @@ esp_err_t wifi_connect_sta(void)
     ESP_ERROR_CHECK(nvs_get_value_str(WIFI_SSID, wifi_ssid, &ssid_tam));
     ESP_ERROR_CHECK(nvs_get_value_str(WIFI_PASS, wifi_pass, &pass_tam));
 
-    
     wifi_config_t wifi_config_apsta = {
         .sta = {
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
@@ -152,15 +150,15 @@ esp_err_t wifi_connect_sta(void)
                 .capable = true,
                 .required = false},
         },
-        .ap.ssid_hidden = 1,        
+        .ap.ssid_hidden = 1,
     };
     s_retry_num = 0;
-    //ESP_LOGI(TAG, "%u", s_retry_num);
-    //char *wifi_ssid_test = "GalisteoU";
-    //char *wifi_pass_test = "Holahola1";
+    // ESP_LOGI(TAG, "%u", s_retry_num);
+    // char *wifi_ssid_test = "GalisteoU";
+    // char *wifi_pass_test = "Holahola1";
 
-    //memcpy(wifi_config_apsta.sta.ssid,      wifi_ssid_test, strlen(wifi_ssid_test));
-    //memcpy(wifi_config_apsta.sta.password,  wifi_pass_test, strlen(wifi_pass_test));
+    // memcpy(wifi_config_apsta.sta.ssid,      wifi_ssid_test, strlen(wifi_ssid_test));
+    // memcpy(wifi_config_apsta.sta.password,  wifi_pass_test, strlen(wifi_pass_test));
 
     memcpy(wifi_config_apsta.sta.ssid, wifi_ssid, ssid_tam);
     memcpy(wifi_config_apsta.sta.password, wifi_pass, pass_tam);
@@ -168,21 +166,18 @@ esp_err_t wifi_connect_sta(void)
     ESP_LOGI(TAG, "%s", wifi_config_apsta.sta.ssid);
     ESP_LOGI(TAG, "%s", wifi_config_apsta.sta.password);
 
-    xEventGroupClearBits(s_wifi_event_group,WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
+    xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_apsta));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config_apsta));
     ESP_ERROR_CHECK(esp_wifi_start());
-    //ESP_LOGI(TAG, "%u", s_retry_num);
+    // ESP_LOGI(TAG, "%u", s_retry_num);
 
-    //ESP_LOGI(TAG, "%s", wifi_ssid);
+    // ESP_LOGI(TAG, "%s", wifi_ssid);
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                            pdTRUE,
                                            pdFALSE,
                                            portMAX_DELAY);
-
-    free(wifi_ssid);
-    free(wifi_pass);
 
     if (bits & WIFI_CONNECTED_BIT)
     {
@@ -194,10 +189,11 @@ esp_err_t wifi_connect_sta(void)
     {
         ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s, starting acces point",
                  wifi_ssid, wifi_pass);
-        
+
         ESP_ERROR_CHECK(esp_wifi_stop());
-        
-        if (netif_ptr != NULL){
+
+        if (netif_ptr != NULL)
+        {
             esp_netif_destroy_default_wifi(netif_ptr);
             netif_ptr = NULL;
         };
@@ -229,6 +225,9 @@ esp_err_t wifi_connect_sta(void)
         err = ESP_ERR_WIFI_NOT_INIT;
     }
 
+    free(wifi_ssid);
+    free(wifi_pass);
+    
     start_espnow_task();
     return err;
 }

@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include <stdbool.h>
 #include "esp_crc.h"
+#include "climate_control.h"
 
 #define QUEUE_SIZE 6
 
@@ -25,6 +26,8 @@ static void espnow_recv_cb(const esp_now_recv_info_t *esp_now_info, const uint8_
     packet_water_t data_recv;
     memcpy(&data_recv.data, data, sizeof(data_water_t));
     memcpy(&data_recv.mac_addr, esp_now_info->src_addr, ESP_NOW_ETH_ALEN);
+    data_recv.id = RECV_ESPNOW;
+
     // ESP_LOGI(TAG, "recv from:" MACSTR "", MAC2STR(esp_now_info->src_addr));
     // ESP_LOGI(TAG, "recv to:" MACSTR "", MAC2STR(esp_now_info->des_addr));
     // ESP_LOGI(TAG, "Comand recv %u with id %u", data_recv.data.comando,data_recv.data.seq_num);
@@ -45,7 +48,7 @@ static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status
     }
     if (status == ESP_NOW_SEND_SUCCESS)
     {
-        ESP_LOGI(TAG, "Send completed");
+        // ESP_LOGI(TAG, "Send completed");
     }
     else
     {
@@ -63,40 +66,72 @@ static void espnow_task(void *pvParameter)
 
         while (paired && xQueueReceive(espnow_queue, &packet_water, ESPNOW_TIMEOUT_S * configTICK_RATE_HZ) == pdTRUE)
         {
-            switch (packet_water.data.comando)
+
+            switch (packet_water.id)
             {
-            case COMANDO_SET_IRRIGATION:
-
-                ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_SET_IRRIGATION));
-                break;
-            case COMANDO_TEST_10_SEG:
-                ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_TEST_10_SEG));
-                break;
-
-            case COMANDO_IRRIGATE:
-
-                ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_IRRIGATE));
-
-                break;
-
-            case COMANDO_ALIVE:
-                if (esp_now_is_peer_exist(packet_water.mac_addr))
+            case RECV_ESPNOW:
+                switch (packet_water.data.comando)
                 {
-                    ESP_ERROR_CHECK(espnow_send_ACK(&packet_water));
-                }
 
+                case COMANDO_ALIVE:
+                    if (esp_now_is_peer_exist(packet_water.mac_addr))
+                    {
+                        ESP_ERROR_CHECK(espnow_send_ACK(&packet_water));
+                    }
+
+                    break;
+                case COMANDO_IRRIGATE_FAIL:
+                    espnow_send_ACK(&packet_water);
+                    break;
+                case COMANDO_IRRIGATE_OK:
+                    if (espnow_send_ACK(&packet_water) == ESP_OK){
+                        irrigation_succed();
+                    }
+                default:
+                    break;
+                }
                 break;
-            case COMANDO_IRRIGATE_FAIL:
-                espnow_send_ACK(&packet_water);
+
+            case SEND_ESPNOW:
+                switch (packet_water.data.comando)
+                {
+                case COMANDO_SET_IRRIGATION:
+                    packet_water.data.seq_num = seq_packet_count;
+                    ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_SET_IRRIGATION));
+                    break;
+                case COMANDO_TEST:
+                    packet_water.data.seq_num = seq_packet_count;
+                    ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_TEST));
+                    break;
+
+                case COMANDO_IRRIGATE:
+                    packet_water.data.seq_num = seq_packet_count;
+                    ESP_ERROR_CHECK(espnow_send_with_acknowledge(&packet_water, COMANDO_IRRIGATE));
+                    break;
+
+                case COMANDO_ALIVE:
+                    if (esp_now_is_peer_exist(packet_water.mac_addr))
+                    {
+                        ESP_ERROR_CHECK(espnow_send_ACK(&packet_water));
+                    }
+
+                    break;
+                case COMANDO_IRRIGATE_FAIL:
+                    espnow_send_ACK(&packet_water);
+                    break;
+
+                default:
+                    break;
+                }
                 break;
 
             default:
                 break;
-            }
-        }
+            } // switch(packet.id)
+        } // while(paired)
         ESP_LOGI(TAG, "TIMEOUT");
         paired = 0;
-    }
+    } // while(1)
 }
 
 static esp_err_t espnow_send_ACK(packet_water_t *packet)
@@ -165,7 +200,6 @@ static esp_err_t espnow_send_ACK(packet_water_t *packet)
 
 static esp_err_t espnow_send_with_acknowledge(packet_water_t *packet, tipoComando comando)
 {
-
     esp_err_t err = ESP_FAIL;
     for (int j = 0; j < ESPNOW_MAX_RETRIES; j++)
     {
@@ -175,23 +209,25 @@ static esp_err_t espnow_send_with_acknowledge(packet_water_t *packet, tipoComand
         packet->data.comando = comando;
         packet->data.crc = esp_crc16_le(UINT16_MAX, (uint8_t const *)&(packet->data), sizeof(data_water_t));
 
-        for (int i = 0; i < ESPNOW_MAX_RETRIES && err == ESP_FAIL; i++)
+        for (int i = 0; i < ESPNOW_MAX_RETRIES && err != ESP_OK; i++)
         {
             err = esp_now_send((uint8_t *)packet->mac_addr, (uint8_t *)&packet->data, sizeof(packet->data));
             if (err != ESP_OK)
             {
-                ESP_LOGW(TAG, "Retry %d/%d for command %d failed, ERR: %s", i + 1, ESPNOW_MAX_RETRIES, comando, esp_err_to_name(err));
+                ESP_LOGW(TAG, "Retry %d/%d for command %d failed", i + 1, ESPNOW_MAX_RETRIES, comando);
                 vTaskDelay(pdMS_TO_TICKS(100));
             }
         }
-        ESP_LOGI(TAG, "Comand recv %u with id %u must to be %u err: %s", packet->data.comando, packet->data.seq_num, seq_packet_count, esp_err_to_name(err));
-
-        if (xQueueReceive(espnow_queue, &packet, ESPNOW_RETRYTIMEOUT_S * configTICK_RATE_HZ) == pdTRUE)
+#ifdef TEST_ESPNOW
+        ESP_LOGI(TAG, "Comand send %u with packet id %u, must to be %u err: %s", packet->data.comando, packet->data.seq_num, seq_packet_count, esp_err_to_name(err));
+#endif
+        if (xQueueReceive(espnow_queue, packet, ESPNOW_RETRYTIMEOUT_S * configTICK_RATE_HZ) == pdTRUE)
         {
-            if (packet->data.comando == COMANDO_ACK && packet->data.seq_num == seq_packet_count)
+            if (packet->data.comando == COMANDO_ACK && packet->data.seq_num == seq_packet_count && esp_now_is_peer_exist((uint8_t *)packet->mac_addr))
             {
-                ESP_LOGI(TAG, "Send comand complete");
+
                 seq_packet_count++;
+                paired = 1;
                 return ESP_OK;
             }
             else if (packet->data.seq_num != seq_packet_count)
@@ -217,12 +253,11 @@ static esp_err_t espnow_send_with_acknowledge(packet_water_t *packet, tipoComand
             err = ESP_ERR_TIMEOUT;
         }
     }
-
     if (err != ESP_OK)
     {
+        paired = 0;
         ESP_LOGE(TAG, "Failed to send command %d after %d retries", comando, ESPNOW_MAX_RETRIES);
     }
-
     return err;
 }
 
@@ -259,7 +294,6 @@ esp_err_t espnow_water_init()
 
 void espnow_register_slave(packet_water_t *packet)
 {
-    esp_err_t err;
     esp_now_peer_info_t peer;
     peer.channel = 0;
     peer.ifidx = WIFI_IF_AP;
@@ -296,11 +330,36 @@ void espnow_register_slave(packet_water_t *packet)
         }
     }
 }
-
-void espnow_irrigate(parameterIrrigation_t parameter_send)
+esp_err_t espnow_calibrate(parameterIrrigation_t parameter_send)
 {
+    if (!paired)
+    {
+        return ESP_ERR_ESPNOW_NOT_FOUND;
+    }
 
     packet_water_t packet;
+    packet.id = SEND_ESPNOW;
+    packet.data.comando = COMANDO_SET_IRRIGATION;
+    packet.data.paramIrrigation = parameter_send;
+    memcpy(&packet.mac_addr, &mac_peer[0], ESP_NOW_ETH_ALEN);
+
+    if (xQueueSend(espnow_queue, &packet, 0) != pdPASS)
+    {
+        ESP_LOGE(TAG, "Queue full, dropping packet irrigate");
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+esp_err_t espnow_irrigate(parameterIrrigation_t parameter_send)
+{
+    if (!paired)
+    {
+        return ESP_ERR_ESPNOW_NOT_FOUND;
+    }
+
+    packet_water_t packet;
+    packet.id = SEND_ESPNOW;
     packet.data.comando = COMANDO_IRRIGATE;
     packet.data.paramIrrigation = parameter_send;
     memcpy(&packet.mac_addr, &mac_peer[0], ESP_NOW_ETH_ALEN);
@@ -308,7 +367,9 @@ void espnow_irrigate(parameterIrrigation_t parameter_send)
     if (xQueueSend(espnow_queue, &packet, 0) != pdPASS)
     {
         ESP_LOGE(TAG, "Queue full, dropping packet irrigate");
+        return ESP_ERR_NO_MEM;
     }
+    return ESP_OK;
 }
 
 void stop_espnow_task(void)
@@ -321,7 +382,7 @@ void stop_espnow_task(void)
     }
 }
 
-void start_espnow_task()
+void start_espnow_task(void)
 {
     if (espnowTaskHandle == NULL && espnow_queue != NULL)
     {
@@ -330,23 +391,30 @@ void start_espnow_task()
     }
 }
 
-uint8_t espnow_is_conected()
+uint8_t espnow_is_conected(void)
 {
     return paired;
 }
 
-void espnow_test()
+esp_err_t espnow_test(uint8_t sec)
 {
 
+    if (!paired)
+    {
+        return ESP_ERR_ESPNOW_NOT_FOUND;
+    }
     packet_water_t packet;
-    packet.data.comando = COMANDO_TEST_10_SEG;
+    packet.id = SEND_ESPNOW;
+    packet.data.comando = COMANDO_TEST;
+    packet.data.paramIrrigation.water_dl = sec;
+    packet.data.paramIrrigation.aditive1_ml_per_L = 2 * sec;
     memcpy(&packet.mac_addr, &mac_peer[0], ESP_NOW_ETH_ALEN);
+
     if (xQueueSend(espnow_queue, &packet, 0) != pdPASS)
     {
         ESP_LOGE(TAG, "Queue full, dropping packet irrigate");
+        return ESP_ERR_NO_MEM;
     }
-    else
-    {
-        ESP_LOGI(TAG, "send COMAND TEST to:" MACSTR " ", MAC2STR(packet.mac_addr));
-    }
+    ESP_LOGI(TAG, "send COMAND TEST to queue list");
+    return ESP_OK;
 }

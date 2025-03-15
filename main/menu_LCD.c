@@ -1,5 +1,12 @@
+/*
+ * menu_LCD.c
+ *
+ *  Created on: 12 mar 2024
+ *      Author: Joruso
+ */
+
 #include "menu_LCD.h"
-#include "AM2302.h"
+#include "cultibot.h"
 #include "i2c_lcd.h"
 #include "freertos/FreeRTOS.h"
 #include "driver/gpio.h"
@@ -59,6 +66,22 @@ void init_gpio_menu()
     gpio_isr_handler_add(PIN_SW, switch_isr_handler, NULL);
 }
 
+size_t strfTemp_hum(char *str)
+{
+    float humidity = get_parameter_clima(HUM_REL);
+    float temperature = get_parameter_clima(TEMP);
+    if (humidity == -1)
+    {
+        sprintf(str, "ERR reading sensor");
+    }
+    else
+    {
+        sprintf(str, "T: %.1f C Hr: %.1f", temperature, humidity);
+    }
+
+    return sizeof(str);
+}
+
 void refresh_info_screen()
 {
     char strtime_buffer[LCD_COLS];
@@ -77,19 +100,19 @@ void refresh_info_screen()
     LCD_writeStr(strtime_buffer);
 
     static uint8_t lastState;
-    if (espnow_is_conected()!= lastState){
+    if (espnow_is_conected() != lastState)
+    {
         lastState = espnow_is_conected();
-        LCD_setCursor(0,2);
+        LCD_setCursor(0, 2);
         if (lastState == 0)
         {
             LCD_writeStr("Dev water not found");
-        }else{
+        }
+        else
+        {
             LCD_writeStr("                    ");
         }
     }
-        
-
-
 }
 
 static int8_t show_menu(char *names[])
@@ -300,7 +323,7 @@ void init_menu()
     }
     LCD_clearScreen();
     init_gpio_menu();
-
+    
     while (1)
     {
 
@@ -308,13 +331,27 @@ void init_menu()
         switch (estado)
         {
         case -1: // INFORMACION
+
+            uint64_t lastchange = esp_timer_get_time();
             LCD_clearScreen();
-            while (estado == -1) // Me quedo en este estado hasta que se presione el switch
+            while (estado == -1 && esp_timer_get_time() < lastchange + TIMEOUT) // Me quedo en este estado hasta que se presione el switch
             {
                 // ESP_LOGI(TAG, "est: %i, sig:", estado);
                 refresh_info_screen();
                 vTaskDelay(0.9 * CONFIG_FREERTOS_HZ);
             }
+
+            if (esp_timer_get_time() > lastchange + TIMEOUT){
+                LCD_LedScreen();
+                while (estado == -1)
+                {
+                    vTaskDelay(0.5 * CONFIG_FREERTOS_HZ);
+                }
+                estado = -1;
+                
+            }
+
+            
             break;
 
         case 0: // MUESTRA LAS LISTA DE OPCIONES
@@ -322,7 +359,7 @@ void init_menu()
             break;
 
         case 1: // MENU DEL RIEGO
-            estado = show_menu((char *[]){"Volver", "Cantidad de agua", "Crecimiento", "Floracion", "Aditivo 3", "Proximo Riego", "Horas entre riegos", "Riego por partes", "Hacer Test", NULL});
+            estado = show_menu((char *[]){"Volver", "Cantidad de agua", "Crecimiento", "Floracion", "Aditivo 3", "Ultimo Riego", "Horas entre riegos", "Riego por partes", "Hacer Test de 5 seg", NULL});
             break;
 
         case 11: // MODIFICO LA VARIABLE LITROS DE AGUA
@@ -344,9 +381,9 @@ void init_menu()
             estado = 1;
             break;
         case 15:
-            ESP_ERROR_CHECK(mod_variable("Dia", NEXT_IRRI_MIN, 1, 31));
-            ESP_ERROR_CHECK(mod_variable("Hora", NEXT_IRRI_HOUR, 0, 23));
-            ESP_ERROR_CHECK(mod_variable("Minuto", NEXT_IRRI_DAY, 0, 59));
+            ESP_ERROR_CHECK(mod_variable("Dia", LAST_IRRI_DAY, 1, 31));
+            ESP_ERROR_CHECK(mod_variable("Hora", LAST_IRRI_HOUR, 0, 23));
+            ESP_ERROR_CHECK(mod_variable("Minuto", LAST_IRRI_MIN, 0, 59));
             estado = 1;
             break;
         case 16:
@@ -359,18 +396,14 @@ void init_menu()
             estado = 1;
             break;
         case 18: // hacer el test de riego
-            if (espnow_is_conected() != 0)
-            {
-                espnow_test();
-            }
-            else
+            if (espnow_test(5) != ESP_OK)
             {
                 LCD_clearScreen();
-                LCD_setCursor(2,1);
+                LCD_setCursor(2, 1);
                 LCD_writeStr("Riego desconectado");
-                LCD_setCursor (2,2);
+                LCD_setCursor(2, 2);
                 LCD_writeStr(" o inalcanzable");
-                vTaskDelay( 1600/portTICK_PERIOD_MS);
+                vTaskDelay(1600 / portTICK_PERIOD_MS);
             }
 
             estado = 1;

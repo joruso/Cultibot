@@ -21,13 +21,20 @@
 const static char *TAG = "CLIMATE_CTR";
 
 static void vTaskControl(void *pvParameters);
+void reset_measures(void);
 
 static TaskHandle_t xHandle;
 static uint8_t temp_day, temp_night, histeresis_day, histeresis_night, hum_day, hum_night; // Variables temperatura y humedad
 static uint8_t interior_vent_status, interior_vent_min_on, interior_vent_min_off;		   // Variables ventilador interno
-static uint8_t hour_btw_irrigations, next_day_irri, next_hour_irri, next_min_irri;		   // Variables riego tiempo
+static uint8_t hour_btw_irrigations;													   // Variables riego tiempo
+static time_t next_irrigation;															   // Variables riego tiempo
 static uint8_t liter_irrigation, dLiter_irrigation, aditive1, aditive2, aditive3;		   // Variables cantidad riego
 static uint16_t start_Light, end_Light;
+
+static float min_temp_day, min_temp_night,
+	max_temp_day, max_temp_night,
+	avg_temp_day, avg_temp_night;
+static uint16_t count_temp_day, count_temp_night;
 
 void climate_init()
 {
@@ -46,7 +53,7 @@ void climate_init()
 
 void climate_load_parameters_from_nvs(void)
 {
-	uint8_t h_on, m_on, h_off, m_off;
+	uint8_t h_on, m_on, h_off, m_off, next_day_irri, next_hour_irri, next_min_irri;
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_MIN, &m_on));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_MIN, &m_off));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_HOUR, &h_on));
@@ -67,44 +74,75 @@ void climate_load_parameters_from_nvs(void)
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_M_OFF, &interior_vent_min_off));
 
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(HOURS_BETWEEN_IRRIGATIONS, &hour_btw_irrigations));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(NEXT_IRRI_DAY, &next_day_irri));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(NEXT_IRRI_HOUR, &next_hour_irri));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(NEXT_IRRI_MIN, &next_min_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_DAY, &next_day_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_HOUR, &next_hour_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MIN, &next_min_irri));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(WATER_LITER, &liter_irrigation));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(WATER_DECILITER, &dLiter_irrigation));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_1_ML, &aditive1));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_2_ML, &aditive2));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_3_ML, &aditive3));
 
+	struct tm time_next_date;
+	time_t now;
+	time(&now);
+	localtime_r (&now, &time_next_date);
+	time_next_date.tm_hour += INTERVAL_RETRY_IRRIGATION_HOUR; 
+	next_irrigation =  mktime(&time_next_date);
+
 	xTaskAbortDelay(xHandle);
 }
 
 static void prove_parameters_day()
 {
+	float temp_read = get_temperature();
+
 	ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_LIGHT, 1));
-	if ((float)(temp_day + histeresis_day) < get_temperature() || (float)hum_day < get_rel_humidity())
+	if ((float)(temp_day + histeresis_day) < temp_read || (float)hum_day < get_rel_humidity())
 	{
 		gpio_set_level(GPIO_NUM_EXTRACTOR, 1);
 	}
-	else if ((float)(temp_day - histeresis_day) > get_temperature())
+	else if ((float)(temp_day - histeresis_day) > temp_read)
 	{
 		gpio_set_level(GPIO_NUM_EXTRACTOR, 0);
+	}
+
+	avg_temp_day += temp_read;
+	count_temp_day++;
+	if (temp_read > max_temp_day)
+	{
+		max_temp_day = temp_read;
+	}
+	else if (temp_read < min_temp_day)
+	{
+		min_temp_day = temp_read;
 	}
 }
 
 static void prove_parameters_night()
 {
+	float temp_read = get_temperature();
 	ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_LIGHT, 0));
-
-	if ((float)(temp_night + histeresis_night) < get_temperature() || (float)hum_night < get_rel_humidity())
+	if ((float)(temp_night + histeresis_night) < temp_read || (float)hum_night < get_rel_humidity())
 	{
-		ESP_LOGI(TAG, "vent ON");
+		// ESP_LOGI(TAG, "vent ON");
 		gpio_set_level(GPIO_NUM_EXTRACTOR, 1);
 	}
-	else if ((float)(temp_night - histeresis_night) > get_temperature())
+	else if ((float)(temp_night - histeresis_night) > temp_read)
 	{
-		ESP_LOGI(TAG, "vent OFF");
+		// ESP_LOGI(TAG, "vent OFF");
 		gpio_set_level(GPIO_NUM_EXTRACTOR, 0);
+	}
+
+	avg_temp_night += temp_read;
+	count_temp_night++;
+	if (temp_read > max_temp_night)
+	{
+		max_temp_night = temp_read;
+	}
+	else if (temp_read < min_temp_night)
+	{
+		min_temp_night = temp_read;
 	}
 }
 
@@ -138,12 +176,12 @@ static void prove_light(uint16_t *current_time)
 	}
 }
 
-static void prove_vent_indoor(uint16_t *current_time)
+static void prove_vent_indoor(time_t *current_time)
 {
 	static uint16_t next_interval_ventinterior = 0;
 	if (interior_vent_status >= 2)
 	{
-		// ESP_LOGI(TAG, "%d, %d", *current_time, next_interval_ventinterior);
+		 //ESP_LOGI(TAG, "%d, %d", *current_time, next_interval_ventinterior);
 		if (*current_time >= next_interval_ventinterior)
 		{
 			if (interior_vent_status == 2)
@@ -160,10 +198,6 @@ static void prove_vent_indoor(uint16_t *current_time)
 				ESP_LOGI(TAG, "Indoor fan OFF");
 				interior_vent_status = 2;
 			}
-		}
-		else if (next_interval_ventinterior >= 1440 && *current_time < 10)
-		{
-			next_interval_ventinterior = next_interval_ventinterior % 1440;
 		}
 	}
 	else if (interior_vent_status == 1)
@@ -183,21 +217,25 @@ static void vTaskControl(void *pvParameters)
 	climate_load_parameters_from_nvs();
 	time_t now;
 	struct tm time_info;
+
+	uint8_t day_now = time_info.tm_mday;
+
+	reset_measures();
+
 	for (;;)
 	{
 		time(&now);
 		localtime_r(&now, &time_info);
 		// ESP_LOGI(TAG,"HOUR->%u",time_info.tm_hour);
-		// ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
+		 ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
+		 ESP_LOGI(TAG, "%u:%u", start_Light, end_Light);
 
 		uint16_t current_time = time_info.tm_hour * 60 + time_info.tm_min;
 
-		prove_vent_indoor(&current_time);
+		prove_vent_indoor(&now);
 		prove_light(&current_time);
 
-		if (time_info.tm_mday == next_day_irri &&
-			time_info.tm_hour >= next_hour_irri &&
-			time_info.tm_min >= next_min_irri)
+		if (now > next_irrigation)
 		{
 			parameterIrrigation_t parameter_send;
 			parameter_send.water_dl = liter_irrigation * 10 + dLiter_irrigation;
@@ -206,8 +244,73 @@ static void vTaskControl(void *pvParameters)
 			parameter_send.aditive3_ml_per_L = aditive3;
 			ESP_LOGI(TAG, "Mandado comando irrigate con los valores: %u dL, %u-%u-%u", parameter_send.water_dl, parameter_send.aditive1_ml_per_L, parameter_send.aditive2_ml_per_L, parameter_send.aditive3_ml_per_L);
 			espnow_irrigate(parameter_send);
+
+			struct tm time_next_date;
+			time_next_date = time_info;
+			time_next_date.tm_hour += INTERVAL_RETRY_IRRIGATION_HOUR; 
+			next_irrigation =  mktime(&time_next_date);
+			
+		}
+
+		if (time_info.tm_mday != day_now)
+		{
+			// Ha pasado al dia siguiente comparto los datos de la temperatura
+
+			reset_measures();
+			day_now = time_info.tm_mday;
 		}
 
 		vTaskDelay(INTERVAL_REFRESH_SEC * CONFIG_FREERTOS_HZ);
+	}
+}
+
+void reset_measures(void)
+{
+
+	max_temp_day = 0;
+	max_temp_night = 0;
+	min_temp_day = 30;
+	min_temp_night = 30;
+	avg_temp_day = 0;
+	avg_temp_night = 0;
+	count_temp_day = 0;
+	count_temp_night = 0;
+}
+
+void irrigation_succed(void){
+	next_irrigation += (hour_btw_irrigations-INTERVAL_RETRY_IRRIGATION_HOUR) * 3600;
+}
+
+float get_parameter_clima(TipoParametro param)
+{
+	switch (param)
+	{
+	case MAX_TEMP_DAY:
+		return max_temp_day;
+		break;
+	case MIN_TEMP_DAY:
+		return min_temp_day;
+		break;
+	case MAX_TEMP_NIGHT:
+		return max_temp_night;
+		break;
+	case MIN_TEMP_NIGHT:
+		return min_temp_night;
+		break;
+	case AVG_TEMP_DAY:
+		return avg_temp_day;
+		break;
+	case AVG_TEMP_NIGHT:
+		return avg_temp_night;
+		break;
+	case TEMP:
+		return get_temperature();
+		break;
+	case HUM_REL:
+		return get_rel_humidity();
+		break;
+	default:
+		return -1;
+		break;
 	}
 }
