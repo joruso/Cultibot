@@ -13,10 +13,11 @@
 #include "nvs_manager.h"
 #include "cultibot.h"
 #include "espnow_water.h"
-
 #include <string.h>
-
 #include "esp_mac.h"
+#include "lwip/sockets.h"
+#include "lwip/netdb.h"
+#include "lwip/inet.h"
 
 #define WIFI_MAXIMUM_RETRY 4
 
@@ -24,6 +25,9 @@
 #define WIFI_FAIL_BIT BIT1
 
 #define MAX_STA_CONN 1 // Maximo de dispositivos conectados en modo station
+
+#define UDP_PORT 4210
+#define BROADCAST_IP "255.255.255.255"
 
 // Grupo de flag de eventos para manejar los eventos del Driver
 static EventGroupHandle_t s_wifi_event_group;
@@ -172,7 +176,8 @@ esp_err_t wifi_connect_sta(void)
     ESP_ERROR_CHECK(esp_wifi_start());
     // ESP_LOGI(TAG, "%u", s_retry_num);
 
-    // ESP_LOGI(TAG, "%s", wifi_ssid);
+    // ESP_LOGI(TAG, "%s", wifi_ssid);    
+    ESP_LOGI(TAG, "%s", wifi_pass);
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
                                            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
                                            pdTRUE,
@@ -231,3 +236,50 @@ esp_err_t wifi_connect_sta(void)
     start_espnow_task();
     return err;
 }
+
+void udp_broadcast_task(void *pvParameters) {
+
+    int seg = *(int *) pvParameters;
+    char message[128];
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (sock < 0) {
+        ESP_LOGE(TAG, "Error creating socket");
+        vTaskDelete(NULL);
+    }
+
+    int broadcastEnable = 1;
+    setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable));
+
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = inet_addr(BROADCAST_IP);
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(UDP_PORT);
+
+    while (seg >= 0) {
+        struct netif *netif = netif_list;
+        ip4_addr_t ip = netif->ip_addr.u_addr.ip4;
+
+        snprintf(message, sizeof(message), "ESP32|%s|MyDevice", ip4addr_ntoa(&ip));
+        int err = sendto(sock, message, strlen(message), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+
+        if (err < 0) ESP_LOGE(TAG, "Error sending UDP packet");
+        else ESP_LOGI(TAG, "Broadcast sent: %s", message);
+
+        vTaskDelay(pdMS_TO_TICKS(5000)); // cada 5 segundos
+        seg = seg -5;
+    }
+    close(sock);
+    vTaskDelete(NULL);
+}
+
+esp_err_t wifi_send_UDP_broadcast_info(int *duration){
+
+    TaskHandle_t xHandle;
+
+    if(xTaskCreate(udp_broadcast_task, "udp_broadcast_task", 4096, duration, 5, NULL) == pdPASS)
+        {
+        return ESP_OK;
+    }
+    return ESP_ERR_NOT_FINISHED;
+}
+    

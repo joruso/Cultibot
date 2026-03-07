@@ -20,16 +20,16 @@ static void espnow_task(void *pvParameter);
 static esp_err_t espnow_send_with_acknowledge(packet_water_t *packet, tipoComando comando);
 static esp_err_t espnow_send_ACK(packet_water_t *packet);
 
-static void espnow_recv_cb(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int data_len)
+static void espnow_recv_cb(const esp_now_recv_info_t *recv_info, const uint8_t *data, int data_len)
 {
 
     packet_water_t data_recv;
     memcpy(&data_recv.data, data, sizeof(data_water_t));
-    memcpy(&data_recv.mac_addr, esp_now_info->src_addr, ESP_NOW_ETH_ALEN);
+    memcpy(&data_recv.mac_addr, recv_info->src_addr, ESP_NOW_ETH_ALEN);
     data_recv.id = RECV_ESPNOW;
 
-    // ESP_LOGI(TAG, "recv from:" MACSTR "", MAC2STR(esp_now_info->src_addr));
-    // ESP_LOGI(TAG, "recv to:" MACSTR "", MAC2STR(esp_now_info->des_addr));
+    // ESP_LOGI(TAG, "recv from:" MACSTR "", MAC2STR(recv_info->src_addr));
+    // ESP_LOGI(TAG, "recv to:" MACSTR "", MAC2STR(recv_info->des_addr));
     // ESP_LOGI(TAG, "Comand recv %u with id %u", data_recv.data.comando,data_recv.data.seq_num);
     if (xQueueSendFromISR(espnow_queue, &data_recv, 0) != pdPASS)
     {
@@ -37,11 +37,11 @@ static void espnow_recv_cb(const esp_now_recv_info_t *esp_now_info, const uint8_
     }
 }
 
-static void espnow_send_cb(const uint8_t *mac_addr, esp_now_send_status_t status)
+static void espnow_send_cb(const esp_now_send_info_t *esp_now_send_info, esp_now_send_status_t status)
 {
 
-    ESP_LOGI(TAG, "send to:" MACSTR "", MAC2STR(mac_addr));
-    if (mac_addr == NULL)
+    ESP_LOGI(TAG, "send to:" MACSTR "", MAC2STR(esp_now_send_info->des_addr));
+    if (esp_now_send_info->des_addr == NULL)
     {
         ESP_LOGE(TAG, "Send cb arg error");
         return;
@@ -84,10 +84,17 @@ static void espnow_task(void *pvParameter)
                     espnow_send_ACK(&packet_water);
                     break;
                 case COMANDO_IRRIGATE_OK:
-                    if (espnow_send_ACK(&packet_water) == ESP_OK){
+                    if (espnow_send_ACK(&packet_water) == ESP_OK)
+                    {
                         irrigation_succed();
                     }
+                    break;
+                case COMANDO_IRRIGATING:
+                    espnow_send_ACK(&packet_water);
+                    //irrigation_in_progress();
+                    break;
                 default:
+                    ESP_LOGE(TAG, "COMAND ERROR RECV, DISCARTING SEGMENT");
                     break;
                 }
                 break;
@@ -114,13 +121,13 @@ static void espnow_task(void *pvParameter)
                     {
                         ESP_ERROR_CHECK(espnow_send_ACK(&packet_water));
                     }
-
                     break;
                 case COMANDO_IRRIGATE_FAIL:
                     espnow_send_ACK(&packet_water);
                     break;
 
                 default:
+                    ESP_LOGE(TAG, "COMAND ERROR SEND, DISCARTING SEGMENT");
                     break;
                 }
                 break;

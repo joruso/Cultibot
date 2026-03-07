@@ -3,8 +3,8 @@
 
 #include <esp_err.h>
 
-#define SDA_IO GPIO_NUM_13
-#define SCL_IO GPIO_NUM_12
+#define SDA_IO GPIO_NUM_12
+#define SCL_IO GPIO_NUM_13
 #define LCD_ROW 4
 #define LCD_COLS 20
 #define LCD_I2C_addr 0x27

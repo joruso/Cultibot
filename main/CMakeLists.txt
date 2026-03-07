@@ -9,6 +9,7 @@ idf_component_register(SRCS     "espnow_water.c"
                                 "nvs_manager.c" 
                                 "server.c"
                                 "mqtt.c"
+                               
                                 
-                        EMBED_FILES html/dash.html html/config.html html/riego.html
+                        EMBED_FILES html/dash.html html/config.html html/riego.html html/clima.html
                         INCLUDE_DIRS ".")

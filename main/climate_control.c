@@ -31,6 +31,8 @@ static time_t next_irrigation;															   // Variables riego tiempo
 static uint8_t liter_irrigation, dLiter_irrigation, aditive1, aditive2, aditive3;		   // Variables cantidad riego
 static uint16_t start_Light, end_Light;
 
+static struct tm time_info;
+
 static float min_temp_day, min_temp_night,
 	max_temp_day, max_temp_night,
 	avg_temp_day, avg_temp_night;
@@ -53,7 +55,7 @@ void climate_init()
 
 void climate_load_parameters_from_nvs(void)
 {
-	uint8_t h_on, m_on, h_off, m_off, next_day_irri, next_hour_irri, next_min_irri;
+	uint8_t h_on, m_on, h_off, m_off, last_month_irri, last_day_irri, last_hour_irri, last_min_irri;
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_MIN, &m_on));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_OFF_MIN, &m_off));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LIGHT_ON_HOUR, &h_on));
@@ -74,9 +76,10 @@ void climate_load_parameters_from_nvs(void)
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_M_OFF, &interior_vent_min_off));
 
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(HOURS_BETWEEN_IRRIGATIONS, &hour_btw_irrigations));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_DAY, &next_day_irri));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_HOUR, &next_hour_irri));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MIN, &next_min_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MONTH, &last_month_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_DAY, &last_day_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_HOUR, &last_hour_irri));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MIN, &last_min_irri));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(WATER_LITER, &liter_irrigation));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(WATER_DECILITER, &dLiter_irrigation));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(FERTI_1_ML, &aditive1));
@@ -86,9 +89,13 @@ void climate_load_parameters_from_nvs(void)
 	struct tm time_next_date;
 	time_t now;
 	time(&now);
-	localtime_r (&now, &time_next_date);
-	time_next_date.tm_hour += INTERVAL_RETRY_IRRIGATION_HOUR; 
-	next_irrigation =  mktime(&time_next_date);
+	localtime_r(&now, &time_next_date);
+	time_next_date.tm_mon = last_month_irri;
+	time_next_date.tm_mday = last_day_irri;
+	time_next_date.tm_hour = last_hour_irri;
+	time_next_date.tm_min = last_min_irri;
+	time_next_date.tm_hour += hour_btw_irrigations;
+	next_irrigation = mktime(&time_next_date);
 
 	xTaskAbortDelay(xHandle);
 }
@@ -181,21 +188,21 @@ static void prove_vent_indoor(time_t *current_time)
 	static uint16_t next_interval_ventinterior = 0;
 	if (interior_vent_status >= 2)
 	{
-		 //ESP_LOGI(TAG, "%d, %d", *current_time, next_interval_ventinterior);
+		// ESP_LOGI(TAG, "%d, %d", *current_time, next_interval_ventinterior);
 		if (*current_time >= next_interval_ventinterior)
 		{
 			if (interior_vent_status == 2)
 			{
 				next_interval_ventinterior = *current_time + interior_vent_min_on;
 				gpio_set_level(GPIO_NUM_VENTI_INTERNO, 1);
-				ESP_LOGI(TAG, "Indoor fan ON");
+				//ESP_LOGI(TAG, "Indoor fan ON");
 				interior_vent_status = 3;
 			}
 			else
 			{
 				next_interval_ventinterior = *current_time + interior_vent_min_off;
 				gpio_set_level(GPIO_NUM_VENTI_INTERNO, 0);
-				ESP_LOGI(TAG, "Indoor fan OFF");
+				//ESP_LOGI(TAG, "Indoor fan OFF");
 				interior_vent_status = 2;
 			}
 		}
@@ -203,12 +210,12 @@ static void prove_vent_indoor(time_t *current_time)
 	else if (interior_vent_status == 1)
 	{
 		gpio_set_level(GPIO_NUM_VENTI_INTERNO, 1);
-		ESP_LOGI(TAG, "Indoor fan permanently ON");
+		//ESP_LOGI(TAG, "Indoor fan permanently ON");
 	}
 	else
 	{
 		gpio_set_level(GPIO_NUM_VENTI_INTERNO, 0);
-		ESP_LOGI(TAG, "Indoor fan permanently OFF");
+		//ESP_LOGI(TAG, "Indoor fan permanently OFF");
 	}
 }
 
@@ -216,7 +223,7 @@ static void vTaskControl(void *pvParameters)
 {
 	climate_load_parameters_from_nvs();
 	time_t now;
-	struct tm time_info;
+
 
 	uint8_t day_now = time_info.tm_mday;
 
@@ -227,8 +234,8 @@ static void vTaskControl(void *pvParameters)
 		time(&now);
 		localtime_r(&now, &time_info);
 		// ESP_LOGI(TAG,"HOUR->%u",time_info.tm_hour);
-		 ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
-		 ESP_LOGI(TAG, "%u:%u", start_Light, end_Light);
+		//ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
+		//ESP_LOGI(TAG, "%u:%u", start_Light, end_Light);
 
 		uint16_t current_time = time_info.tm_hour * 60 + time_info.tm_min;
 
@@ -237,19 +244,7 @@ static void vTaskControl(void *pvParameters)
 
 		if (now > next_irrigation)
 		{
-			parameterIrrigation_t parameter_send;
-			parameter_send.water_dl = liter_irrigation * 10 + dLiter_irrigation;
-			parameter_send.aditive1_ml_per_L = aditive1;
-			parameter_send.aditive2_ml_per_L = aditive2;
-			parameter_send.aditive3_ml_per_L = aditive3;
-			ESP_LOGI(TAG, "Mandado comando irrigate con los valores: %u dL, %u-%u-%u", parameter_send.water_dl, parameter_send.aditive1_ml_per_L, parameter_send.aditive2_ml_per_L, parameter_send.aditive3_ml_per_L);
-			espnow_irrigate(parameter_send);
-
-			struct tm time_next_date;
-			time_next_date = time_info;
-			time_next_date.tm_hour += INTERVAL_RETRY_IRRIGATION_HOUR; 
-			next_irrigation =  mktime(&time_next_date);
-			
+			irrigate_now();
 		}
 
 		if (time_info.tm_mday != day_now)
@@ -269,16 +264,40 @@ void reset_measures(void)
 
 	max_temp_day = 0;
 	max_temp_night = 0;
-	min_temp_day = 30;
-	min_temp_night = 30;
+	min_temp_day = 40;
+	min_temp_night = 40;
 	avg_temp_day = 0;
 	avg_temp_night = 0;
 	count_temp_day = 0;
 	count_temp_night = 0;
 }
 
-void irrigation_succed(void){
-	next_irrigation += (hour_btw_irrigations-INTERVAL_RETRY_IRRIGATION_HOUR) * 3600;
+void irrigation_succed(void)
+{
+	struct tm time_next = time_info;
+	time_next.tm_hour += hour_btw_irrigations;
+	next_irrigation = mktime(&time_next);
+	nvs_set_value_num_u8(LAST_IRRI_MONTH,time_info.tm_mon);
+	nvs_set_value_num_u8(LAST_IRRI_DAY,time_info.tm_mday);
+	nvs_set_value_num_u8(LAST_IRRI_HOUR,time_info.tm_hour);
+	nvs_set_value_num_u8(LAST_IRRI_MIN,time_info.tm_min);
+}
+
+void irrigation_in_progress(void){
+	next_irrigation += (INTERVAL_RETRY_IRRIGATION_HOUR * 3600);
+}
+
+void irrigate_now(void)
+{
+	parameterIrrigation_t parameter_send;
+	parameter_send.water_dl = liter_irrigation * 10 + dLiter_irrigation;
+	parameter_send.aditive1_ml_per_L = aditive1;
+	parameter_send.aditive2_ml_per_L = aditive2;
+	parameter_send.aditive3_ml_per_L = aditive3;
+	ESP_LOGI(TAG, "Mandado comando irrigate con los valores: %u dL, %u-%u-%u", parameter_send.water_dl, parameter_send.aditive1_ml_per_L, parameter_send.aditive2_ml_per_L, parameter_send.aditive3_ml_per_L);
+	espnow_irrigate(parameter_send);
+
+	next_irrigation += INTERVAL_RETRY_IRRIGATION_SEND_MIN * 60 ;
 }
 
 float get_parameter_clima(TipoParametro param)

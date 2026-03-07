@@ -17,6 +17,9 @@
 #include "espnow_water.h"
 
 #include "esp_timer.h"
+
+#include "wifi.h"
+
 #define TIMEOUT 10000000         // 10s
 #define INTERVAL_SPEEDER 1000000 // 1s
 #define INTERVAL_INCREMENT 10000 // 10ms
@@ -313,6 +316,17 @@ esp_err_t mod_variable(char *text, char *var, uint8_t min_value, uint8_t max_val
     return err;
 }
 
+void pairing_udp(){
+
+    int seg = 21;
+    LCD_clearScreen();
+    LCD_writeStr("Emparejando");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    ESP_ERROR_CHECK(wifi_send_UDP_broadcast_info(&seg));
+    LCD_clearScreen();
+}
+
+
 void init_menu()
 {
 
@@ -359,7 +373,7 @@ void init_menu()
             break;
 
         case 1: // MENU DEL RIEGO
-            estado = show_menu((char *[]){"Volver", "Cantidad de agua", "Crecimiento", "Floracion", "Aditivo 3", "Ultimo Riego", "Horas entre riegos", "Riego por partes", "Hacer Test de 5 seg", NULL});
+            estado = show_menu((char *[]){"Volver", "Cantidad de agua", "Crecimiento", "Floracion", "Aditivo 3", "Ultimo Riego", "Horas entre riegos", "Riego por partes", "Hacer Test", NULL});
             break;
 
         case 11: // MODIFICO LA VARIABLE LITROS DE AGUA
@@ -369,15 +383,15 @@ void init_menu()
             estado = 1;
             break;
         case 12:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 1 ml*1L", FERTI_1_ML, 1, 20));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 1 ml*1L", FERTI_1_ML, 0, 20));
             estado = 1;
             break;
         case 13:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 2 ml*1L", FERTI_2_ML, 1, 20));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 2 ml*1L", FERTI_2_ML, 0, 20));
             estado = 1;
             break;
         case 14:
-            ESP_ERROR_CHECK(mod_variable("Aditivo 3 ml*1L", FERTI_3_ML, 1, 20));
+            ESP_ERROR_CHECK(mod_variable("Aditivo 3 ml*1L", FERTI_3_ML, 0, 20));
             estado = 1;
             break;
         case 15:
@@ -396,7 +410,7 @@ void init_menu()
             estado = 1;
             break;
         case 18: // hacer el test de riego
-            if (espnow_test(5) != ESP_OK)
+            if (espnow_test(10) != ESP_OK)
             {
                 LCD_clearScreen();
                 LCD_setCursor(2, 1);
@@ -476,6 +490,13 @@ void init_menu()
             ESP_ERROR_CHECK(mod_variable("Hora apagado", LIGHT_OFF_HOUR, 0, 23));
             ESP_ERROR_CHECK(mod_variable("Min apagado", LIGHT_OFF_MIN, 0, 59));
             estado = 5;
+            break;
+        case 6: // MENU DE LA HORA 
+            estado = show_menu((char *[]){"Volver", "Minutos", "Hora", NULL});
+            break;
+        case 7: // EMPAREJAMIENTO POR UDP 
+            pairing_udp();
+            estado = -1;
             break;
         default:
             break;

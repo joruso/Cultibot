@@ -37,6 +37,9 @@ static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int
         ESP_LOGE(TAG, "Error en el cliente MQTT");
         break;
 
+    case MQTT_EVENT_BEFORE_CONNECT:
+        ESP_LOGE(TAG, "The event occurs before connecting");
+        break;
     default:
         ESP_LOGI(TAG, "Evento desconocido: %d", event->event_id);
         break;

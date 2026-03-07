@@ -63,7 +63,7 @@ void init_drivers()
 	esp_err_t err;
 	ESP_ERROR_CHECK(nvs_manager_init());
 
-	setenv("TZ", "UTC-1,M3.31.0/2,M10.29.0/3", 1); // Configuro la zona horaria a la de españa
+	setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1); // Configuro la zona horaria a la de españa
 	err = wifi_init();
 
 	if (err == ESP_OK)
