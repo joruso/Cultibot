@@ -106,8 +106,8 @@
     <div class="sidebar" id="sidebar">
         <h2>Menú</h2>
         <ul>
-            <li><button>Inicio</button></li>
-            <li><button id="clima_btn">Clima</button></li>
+            <li><button id="dash_btn">Inicio</button></li>
+            <li><button>Clima</button></li>
             <li><button id="riego_btn">Riego</button></li>
             <li><button id="config_btn">Configuración</button></li>
         </ul>
@@ -138,9 +138,10 @@
         content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
     });
 
-    document.getElementById('clima_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/clima`;
-    };
+    document.getElementById('dash_btn').onclick = function (){
+        window.location.href = `${window.location.origin}/`;
+    }
+
     document.getElementById('config_btn').onclick = function () {
         window.location.href = `${window.location.origin}/config`;
     };

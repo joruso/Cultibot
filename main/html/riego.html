@@ -122,8 +122,11 @@
         <button id="menuToggle">☰</button>
         <h1>Riego</h1>
         <div class="data-card">
-            <h2>Ultimo riego día: <span id="day_irrigation">--</span>; <span id="hour_irrigation">--</span>:<span
+            <h2>Ultimo riego: <span id="day_irrigation">--</span>/<span id="month_irrigati">--</span> ; Hora:<span id="hour_irrigation">--</span>:<span
                     id="min_irrigation">--</span></h2>
+        </div>
+        <div class="data-card">
+            <h2>Horas entre riegos: <span id="hours_btw_irri">--</span></h2>
         </div>
         <div class="data-card">
             <button id="irrigate_now_btn">Regar ahora</button>
@@ -155,7 +158,7 @@
         window.location.href = `${window.location.origin}/`;
     };
     document.getElementById('clime_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/clime`;
+        window.location.href = `${window.location.origin}/clima`;
     };
     document.getElementById('config_btn').onclick = function () {
         window.location.href = `${window.location.origin}/config`;
@@ -228,9 +231,11 @@
                 throw new Error(`Error HTTP: ${response.status}`);
             }
             const jsonData = await response.json();
-            document.getElementById("day_irrigation").textContent = parseFloat(jsonData.day_irrigation);
-            document.getElementById("hour_irrigation").textContent = parseFloat(jsonData.hour_irrigation);
             document.getElementById("min_irrigation").textContent = parseFloat(jsonData.min_irrigation);
+            document.getElementById("hour_irrigation").textContent = parseFloat(jsonData.hour_irrigation);
+            document.getElementById("day_irrigation").textContent = parseFloat(jsonData.day_irrigation);
+            document.getElementById("month_irrigati").textContent = parseFloat(jsonData.month_irrigati);
+            document.getElementById("hours_btw_irri").textContent = parseFloat(jsonData.hours_btw_irri);
         } catch (error) {
             console.error('Error al obtener los datos:', error);
         }
