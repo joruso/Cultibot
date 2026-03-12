@@ -36,9 +36,7 @@
 
 #define TEMP_DAY "temp_day"      
 #define TEMP_NIGHT "temp_night"         
-#define HISTERESIS_DAY "histeresis_day" 
-#define HISTERESIS_NIGHT "hister_night" 
-
+#define HISTERESIS "histeresis" 
 #define HUMEDAD_REL_DAY "hum_rel_day"     
 #define HUMEDAD_REL_NIGHT "hum_rel_night" 
 
@@ -47,14 +45,25 @@
 #define LIGHT_ON_HOUR "light_on_h"   
 #define LIGHT_OFF_HOUR "light_off_h" 
 
-#define INDOOR_VENT_STATUS "ind_v_status" // 0-> apagado 1->encendido 2->intervalo
-#define INDOOR_VENT_M_ON "ind_v_m_on"
-#define INDOOR_VENT_M_OFF "ind_v_m_off"  
+enum ModoVentilador {
+    OFF,
+    ON,
+    INTERMITENT,
+    TOGGLE
+};
+#define INDOOR_1_VENT_STATUS "ind_1_v_status" // 0-> apagado 1->encendido 2->intervalo 3->conmutado
+#define INDOOR_1_VENT_M_ON "ind_1_v_m_on"
+#define INDOOR_1_VENT_M_OFF "ind_1_v_m_off"  
+
+#define INDOOR_2_VENT_STATUS "ind_2_v_status" // 0-> apagado 1->encendido 2->intervalo
+#define INDOOR_2_VENT_M_ON "ind_2_v_m_on"
+#define INDOOR_2_VENT_M_OFF "ind_2_v_m_off" 
 
 #define WIFI_SSID "wifi_ssid"   // Tiene una longuitud de 32 bits
 #define WIFI_PASS "wifi_pass"   // Tiene una longuitud de 64 bits
 
 #define MQTT_URI "mqtt_uri"
+#define MQTT_TOPIC "mqtt_topic"
 
 
 // Funcion para refrescar los parametros despues de ser modificados

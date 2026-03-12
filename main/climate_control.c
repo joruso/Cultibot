@@ -15,7 +15,7 @@
 #include "nvs_manager.h"
 #include "esp_log.h"
 
-#define GPIO_OUTPUT_PINES ((1ULL << GPIO_NUM_LIGHT) | (1ULL << GPIO_NUM_EXTRACTOR) | (1ULL << GPIO_NUM_VENTI_INTERNO))
+#define GPIO_OUTPUT_PINES ((1ULL << GPIO_NUM_LIGHT) | (1ULL << GPIO_NUM_EXTRACTOR) | (1ULL << GPIO_NUM_VENTI_INTERNO_1) | (1ULL << GPIO_NUM_VENTI_INTERNO_2))
 
 #define STACK_SIZE 4096
 const static char *TAG = "CLIMATE_CTR";
@@ -25,7 +25,10 @@ void reset_measures(void);
 
 static TaskHandle_t xHandle;
 static uint8_t temp_day, temp_night, histeresis_day, histeresis_night, hum_day, hum_night; // Variables temperatura y humedad
-static uint8_t interior_vent_status, interior_vent_min_on, interior_vent_min_off;		   // Variables ventilador interno
+static uint8_t interior_1_vent_status, interior_1_vent_min_on, interior_1_vent_min_off;	   // Variables ventilador interno 1
+static uint16_t next_interval_1 = 0;
+static uint8_t interior_2_vent_status, interior_2_vent_min_on, interior_2_vent_min_off;	   // Variables ventilador interno 2
+static uint16_t next_interval_2 = 0;
 static uint8_t hour_btw_irrigations;													   // Variables riego tiempo
 static time_t next_irrigation;															   // Variables riego tiempo
 static uint8_t liter_irrigation, dLiter_irrigation, aditive1, aditive2, aditive3;		   // Variables cantidad riego
@@ -66,14 +69,16 @@ void climate_load_parameters_from_nvs(void)
 
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(TEMP_DAY, &temp_day));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(TEMP_NIGHT, &temp_night));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(HISTERESIS_DAY, &histeresis_day));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(HISTERESIS_NIGHT, &histeresis_night));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(HISTERESIS, &histeresis_day));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(HUMEDAD_REL_DAY, &hum_day));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(HUMEDAD_REL_NIGHT, &hum_night));
 
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_STATUS, &interior_vent_status));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_M_ON, &interior_vent_min_on));
-	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_M_OFF, &interior_vent_min_off));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_1_VENT_STATUS, &interior_1_vent_status));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_1_VENT_M_ON, &interior_1_vent_min_on));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_1_VENT_M_OFF, &interior_1_vent_min_off));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_2_VENT_STATUS, &interior_2_vent_status));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_2_VENT_M_ON, &interior_2_vent_min_on));
+	ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_2_VENT_M_OFF, &interior_2_vent_min_off));
 
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(HOURS_BETWEEN_IRRIGATIONS, &hour_btw_irrigations));
 	ESP_ERROR_CHECK(nvs_get_value_num_u8(LAST_IRRI_MONTH, &last_month_irri));
@@ -96,6 +101,9 @@ void climate_load_parameters_from_nvs(void)
 	time_next_date.tm_min = last_min_irri;
 	time_next_date.tm_hour += hour_btw_irrigations;
 	next_irrigation = mktime(&time_next_date);
+
+	next_interval_1 = 0;
+	next_interval_2 = 0;
 
 	xTaskAbortDelay(xHandle);
 }
@@ -183,39 +191,105 @@ static void prove_light(uint16_t *current_time)
 	}
 }
 
-static void prove_vent_indoor(time_t *current_time)
+static void prove_vent_indoor(uint16_t *current_time)
 {
-	static uint16_t next_interval_ventinterior = 0;
-	if (interior_vent_status >= 2)
+	static uint8_t phase_1 = 0; 
+    static uint8_t phase_2 = 0;
+
+	// Si cambia de dia
+    if (*current_time == 0) {
+        next_interval_1 = next_interval_1 - 1440;
+        next_interval_2 = next_interval_2 - 1440;
+    }
+
+	if (*current_time >= next_interval_1)
 	{
-		// ESP_LOGI(TAG, "%d, %d", *current_time, next_interval_ventinterior);
-		if (*current_time >= next_interval_ventinterior)
+		if (interior_1_vent_status == INTERMITENT)
 		{
-			if (interior_vent_status == 2)
+
+			if (phase_1 == 0)
 			{
-				next_interval_ventinterior = *current_time + interior_vent_min_on;
-				gpio_set_level(GPIO_NUM_VENTI_INTERNO, 1);
-				//ESP_LOGI(TAG, "Indoor fan ON");
-				interior_vent_status = 3;
+				next_interval_1 = *current_time + interior_1_vent_min_on;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 1);
+				 ESP_LOGI(TAG, "Indoor fan 1 ON");
+				phase_1 = 1;
 			}
 			else
 			{
-				next_interval_ventinterior = *current_time + interior_vent_min_off;
-				gpio_set_level(GPIO_NUM_VENTI_INTERNO, 0);
-				//ESP_LOGI(TAG, "Indoor fan OFF");
-				interior_vent_status = 2;
+				next_interval_1 = *current_time + interior_1_vent_min_off;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 0);
+				 ESP_LOGI(TAG, "Indoor fan 1 OFF");
+				phase_1 = 0;
 			}
 		}
+		if (interior_1_vent_status == TOGGLE)
+		{
+			if (phase_1 == 0)
+			{
+				next_interval_1 = *current_time + interior_1_vent_min_on;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 1);
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 0);
+				 ESP_LOGI(TAG, "Indoor fan 1 ON and fan 2 OFF");
+				phase_1 = 1;
+				next_interval_2 = 1450;
+			}
+			else
+			{
+				next_interval_1 = *current_time + interior_1_vent_min_off;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 0);
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 1);
+				 ESP_LOGI(TAG, "Indoor fan 1 OFF and fan 2 ON");
+				phase_1 = 0;
+				next_interval_2 = 1450;
+			}
+		}
+
+		else if (interior_1_vent_status == ON)
+		{
+			gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 1);
+			next_interval_1 = 1450;
+			 ESP_LOGI(TAG, "Indoor fan 1 permanently ON");
+		}
+		else if (interior_1_vent_status == OFF)
+		{
+			gpio_set_level(GPIO_NUM_VENTI_INTERNO_1, 0);
+			next_interval_1 = 1450;
+			 ESP_LOGI(TAG, "Indoor fan 1 permanently OFF");
+		}
 	}
-	else if (interior_vent_status == 1)
+	if (*current_time >= next_interval_2)
 	{
-		gpio_set_level(GPIO_NUM_VENTI_INTERNO, 1);
-		//ESP_LOGI(TAG, "Indoor fan permanently ON");
-	}
-	else
-	{
-		gpio_set_level(GPIO_NUM_VENTI_INTERNO, 0);
-		//ESP_LOGI(TAG, "Indoor fan permanently OFF");
+		if (interior_2_vent_status == INTERMITENT)
+		{
+
+			if (phase_2 == 0)
+			{
+				next_interval_2 = *current_time + interior_2_vent_min_on;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 1);
+				 ESP_LOGI(TAG, "Indoor fan 2 ON");
+				phase_2 = 1;
+			}
+			else
+			{
+				next_interval_2 = *current_time + interior_2_vent_min_off;
+				gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 0);
+				 ESP_LOGI(TAG, "Indoor fan 2 OFF");
+				phase_2 = 0;
+			}
+		}
+
+		else if (interior_2_vent_status == ON)
+		{
+			gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 1);
+			next_interval_2 = 1450;
+			 ESP_LOGI(TAG, "Indoor fan 2 permanently ON");
+		}
+		else if (interior_2_vent_status == OFF)
+		{
+			gpio_set_level(GPIO_NUM_VENTI_INTERNO_2, 0);
+			next_interval_2 = 1450;
+			 ESP_LOGI(TAG, "Indoor fan 2 permanently OFF");
+		}
 	}
 }
 
@@ -223,7 +297,6 @@ static void vTaskControl(void *pvParameters)
 {
 	climate_load_parameters_from_nvs();
 	time_t now;
-
 
 	uint8_t day_now = time_info.tm_mday;
 
@@ -234,13 +307,14 @@ static void vTaskControl(void *pvParameters)
 		time(&now);
 		localtime_r(&now, &time_info);
 		// ESP_LOGI(TAG,"HOUR->%u",time_info.tm_hour);
-		//ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
-		//ESP_LOGI(TAG, "%u:%u", start_Light, end_Light);
+		// ESP_LOGI(TAG, "%u:%u", time_info.tm_hour, time_info.tm_min);
+		// ESP_LOGI(TAG, "%u:%u", start_Light, end_Light);
 
 		uint16_t current_time = time_info.tm_hour * 60 + time_info.tm_min;
 
-		prove_vent_indoor(&now);
 		prove_light(&current_time);
+		prove_vent_indoor(&current_time);
+		
 
 		if (now > next_irrigation)
 		{
@@ -277,13 +351,14 @@ void irrigation_succed(void)
 	struct tm time_next = time_info;
 	time_next.tm_hour += hour_btw_irrigations;
 	next_irrigation = mktime(&time_next);
-	nvs_set_value_num_u8(LAST_IRRI_MONTH,time_info.tm_mon);
-	nvs_set_value_num_u8(LAST_IRRI_DAY,time_info.tm_mday);
-	nvs_set_value_num_u8(LAST_IRRI_HOUR,time_info.tm_hour);
-	nvs_set_value_num_u8(LAST_IRRI_MIN,time_info.tm_min);
+	nvs_set_value_num_u8(LAST_IRRI_MONTH, time_info.tm_mon);
+	nvs_set_value_num_u8(LAST_IRRI_DAY, time_info.tm_mday);
+	nvs_set_value_num_u8(LAST_IRRI_HOUR, time_info.tm_hour);
+	nvs_set_value_num_u8(LAST_IRRI_MIN, time_info.tm_min);
 }
 
-void irrigation_in_progress(void){
+void irrigation_in_progress(void)
+{
 	next_irrigation += (INTERVAL_RETRY_IRRIGATION_HOUR * 3600);
 }
 
@@ -297,7 +372,7 @@ void irrigate_now(void)
 	ESP_LOGI(TAG, "Mandado comando irrigate con los valores: %u dL, %u-%u-%u", parameter_send.water_dl, parameter_send.aditive1_ml_per_L, parameter_send.aditive2_ml_per_L, parameter_send.aditive3_ml_per_L);
 	espnow_irrigate(parameter_send);
 
-	next_irrigation += INTERVAL_RETRY_IRRIGATION_SEND_MIN * 60 ;
+	next_irrigation += INTERVAL_RETRY_IRRIGATION_SEND_MIN * 60;
 }
 
 float get_parameter_clima(TipoParametro param)

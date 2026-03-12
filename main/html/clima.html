@@ -4,17 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Clima</title>
     <style>
-        /* Estilos generales */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
+            background-color: #f0f2f5;
         }
 
-        /* Estilos de la barra lateral */
         .sidebar {
             width: 250px;
             height: 100vh;
@@ -23,6 +22,7 @@
             position: fixed;
             left: -250px;
             transition: left 0.3s;
+            z-index: 1000;
         }
 
         .sidebar.open {
@@ -44,27 +44,24 @@
         .sidebar ul li button {
             padding: 15px;
             text-align: center;
-            cursor: pointer;
-            background-color: #333;
             border: none;
-            border-radius: 5px;
             color: white;
             width: 100%;
             cursor: pointer;
-            transition: background-color 0.3s;
+            background-color: #333;
+            transition: 0.3s;
         }
 
         .sidebar ul li button:hover {
             background-color: #555;
         }
 
-
-        /* Estilos del contenido principal */
         .content {
             margin-left: 0px;
             padding: 20px;
             width: 100%;
             transition: margin-left 0.3s;
+            box-sizing: border-box;
         }
 
         .content h1 {
@@ -72,20 +69,67 @@
             margin-left: 60px;
         }
 
-        .content .data-card {
-            padding: 20px;
+        .data-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            padding: 25px;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .card h2 {
+            font-size: 1.1em;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            background-color: #f4f4f4;
+            color: #444;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
 
-        .content .data-card h2 {
-            font-size: 24px;
-            margin: 0;
+        .input-group {
+            margin-bottom: 15px;
         }
 
-        /* Botón para abrir/cerrar la barra lateral */
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-save:hover {
+            background-color: #218838;
+        }
+
         #menuToggle {
             font-size: 24px;
             cursor: pointer;
@@ -97,6 +141,13 @@
             color: white;
             border: none;
             border-radius: 4px;
+            z-index: 1001;
+        }
+
+        #status_msg {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -116,15 +167,116 @@
     <!-- Contenido principal -->
     <div class="content" id="content">
         <button id="menuToggle">☰</button>
-        <h1>Dashboard</h1>
-        <div class="data-card">
-            <h2>Temperatura: <span id="temperature">--</span>°C</h2>
+        <h1>Control Climático</h1>
+
+        <div class="data-container">
+            <div class="card">
+                <h2>Horario de Iluminación</h2>
+                <div class="input-group">
+                    <label>Hora de Encendido (Inicio Día)</label>
+                    <input type="time" id="HourMinON">
+                </div>
+                <div class="input-group">
+                    <label>Hora de Apagado (Inicio Noche)</label>
+                    <input type="time" id="HourMinOFF">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Temperatura</h2>
+                <div class="input-group">
+                    <label>Temperatura Objetivo Día (°C)</label>
+                    <input type="number" id="temp_day" min="10" max="40">
+                </div>
+                <div class="input-group">
+                    <label>Temperatura Objetivo Noche (°C)</label>
+                    <input type="number" id="temp_night" min="10" max="40">
+                </div>
+                <div class="input-group">
+                    <label>Histéresis Tª (°C)</label>
+                    <input type="number" id="histeresis" min="1" max="5" step="1">
+                </div>
+                <p style="font-size: 0.8em; color: #888; margin-top: 15px;">
+                    *El sistema avisara cuando se superer los umbrales en 2°C
+                </p>
+            </div>
+
+            <div class="card">
+                <h2>Humedad</h2>
+                <div class="input-group">
+                    <label>Humedad Máxima Día (%)</label>
+                    <input type="number" id="hum_day" min="10" max="100">
+                </div>
+                <div class="input-group">
+                    <label>Humedad Máxima Noche (%)</label>
+                    <input type="number" id="hum_night" min="10" max="100">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Soporte Térmico y Extracción</h2>
+                <div class="input-group">
+                    <label>Estado del Calentador (Heater)</label>
+                    <select id="heater_status">
+                        <option value="0">Desactivado</option>
+                        <option value="1">Modo Automático</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Extractores e Intractores</label>
+                    <select id="extrac_status">
+                        <option value="0">OFF</option>
+                        <option value="1">Auto (Por Tª/Hum)</option>
+                        <option value="2">Siempre ON</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Ventilación Interna</h2>
+
+                <div class="input-group">
+                    <label>Ventilador 1 (Modo)</label>
+                    <select id="ind_1_v_status" onchange="updateFanUI()">
+                        <option value="0">OFF</option>
+                        <option value="1">ON</option>
+                        <option value="2">Intermitente</option>
+                        <option value="3">TOGGLE (Conmutado con V2)</option>
+                    </select>
+                </div>
+                <div class="input-group" id="timer_v1">
+                    <label>Tiempo ON / OFF (min)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="ind_1_v_m_on" min="1" max="250" placeholder="ON">
+                        <input type="number" id="ind_1_v_m_off" min="1" max="250" placeholder="OFF">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+                <div class="input-group">
+                    <label>Ventilador 2</label>
+                    <select id="ind_2_v_status" onchange="updateFanUI()">
+                        <option value="0">OFF</option>
+                        <option value="1">ON</option>
+                        <option value="2">Intermitente</option>
+                    </select>
+                </div>
+                <div class="input-group" id="timer_v2">
+                    <label>Tiempo ON / OFF (min)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="ind_2_v_m_on" min="1" max="250" placeholder="ON">
+                        <input type="number" id="ind_2_v_m_off" min="1" max="250" placeholder="OFF">
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="data-card">
-            <h2>Humedad: <span id="humidity">--</span>%</h2>
+
+        <div style="max-width: 400px; margin: 30px auto;">
+            <button class="btn-save" onclick="saveClimate()">Guardar Cambios Climáticos</button>
+            <div id="status_msg"></div>
         </div>
     </div>
-
 
 </body>
 <script>
@@ -138,40 +290,146 @@
         content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
     });
 
-    document.getElementById('dash_btn').onclick = function (){
-        window.location.href = `${window.location.origin}/`;
-    }
+    document.getElementById('dash_btn').onclick = function () {
+        sidebar.classList.toggle("open");
+        content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        setTimeout(() => { window.location.href = `${window.location.origin}/`; }, 30);
+
+    };
 
     document.getElementById('config_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/config`;
+        sidebar.classList.toggle("open");
+        content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        setTimeout(() => { window.location.href = `${window.location.origin}/config`; }, 30);
     };
+
     document.getElementById('riego_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/riego`;
+        sidebar.classList.toggle("open");
+        content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        setTimeout(() => { window.location.href = `${window.location.origin}/riego`; }, 30);
+
     };
 
-
-
-    async function updateData() {
-
+    async function loadData() {
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
+            const response = await fetch(`${window.location.origin}/clima_get`);
+            const data = await response.json();
+
+            document.getElementById('HourMinON').value = data.HourMinON || "08:00";
+            document.getElementById('HourMinOFF').value = data.HourMinOFF || "20:00";
+            document.getElementById('temp_day').value = data.temp_day;
+            document.getElementById('temp_night').value = data.temp_night;
+            document.getElementById('histeresis').value = data.histeresis;
+            document.getElementById('hum_day').value = data.hum_day;
+            document.getElementById('hum_night').value = data.hum_night;
+            document.getElementById('ind_1_v_status').value = data.ind_1_v_status;
+            document.getElementById('ind_2_v_status').value = data.ind_2_v_status;
+            document.getElementById('ind_1_v_m_on').value = data.ind_1_v_m_on || 1;
+            document.getElementById('ind_1_v_m_off').value = data.ind_1_v_m_off || 1;
+            document.getElementById('ind_2_v_m_on').value = data.ind_2_v_m_on || 1;
+            document.getElementById('ind_2_v_m_off').value = data.ind_2_v_m_off || 1;
+
+            updateFanUI();
+
+        } catch (e) { console.error("Error cargando clima:", e); }
+    }
+
+    function updateFanUI() {
+        const status1 = document.getElementById('ind_1_v_status').value;
+        const status2 = document.getElementById('ind_2_v_status').value;
+        const isToggle = (status1 === "3");
+
+        // --- Lógica para Ventilador 1 ---
+        // Se bloquean minutos si es OFF (0) o ON (1)
+        const lockMinutes1 = (status1 === "0" || status1 === "1");
+        const v1Minutes = ['ind_1_v_m_on', 'ind_1_v_m_off'];
+
+        v1Minutes.forEach(id => {
+            const el = document.getElementById(id);
+            el.disabled = lockMinutes1;
+            el.parentElement.style.opacity = lockMinutes1 ? "0.3" : "1";
+        });
+
+        // --- Lógica para Ventilador 2 ---
+        const v2StatusEl = document.getElementById('ind_2_v_status');
+        const v2Minutes = ['ind_2_v_m_on', 'ind_2_v_m_off'];
+
+        if (isToggle) {
+            // Si V1 está en TOGGLE, bloqueamos todo lo relacionado con V2
+            v2StatusEl.disabled = true;
+            v2StatusEl.parentElement.style.opacity = "0.3";
+            v2Minutes.forEach(id => {
+                const el = document.getElementById(id);
+                el.disabled = true;
+                el.parentElement.style.opacity = "0.3";
+            });
+        } else {
+            // Si no hay TOGGLE, V2 es independiente
+            v2StatusEl.disabled = false;
+            v2StatusEl.parentElement.style.opacity = "1";
+
+            // Bloqueamos minutos de V2 si su propio estado es OFF (0) o ON (1)
+            const lockMinutes2 = (status2 === "0" || status2 === "1");
+            v2Minutes.forEach(id => {
+                const el = document.getElementById(id);
+                el.disabled = lockMinutes2;
+                el.parentElement.style.opacity = lockMinutes2 ? "0.3" : "1";
+            });
+        }
+    }
+
+    async function saveClimate() {
+        const msg = document.getElementById("status_msg");
+        msg.textContent = "Sincronizando umbrales...";
+
+        // Validación de rangos antes de enviar
+        const timers = ['ind_1_v_m_on', 'ind_1_v_m_off', 'ind_2_v_m_on', 'ind_2_v_m_off'];
+        for (let id of timers) {
+            let val = parseInt(document.getElementById(id).value);
+            if (val < 1 || val > 250) {
+                msg.textContent = "✗ Error: Los temporizadores deben estar entre 1 y 250 min";
+                msg.style.color = "#dc3545";
+                return;
             }
-            const jsonData = await response.json();
-
-            //console.log(jsonData);
-
-            document.getElementById("temperature").textContent = parseFloat(jsonData.temperature.toFixed(1));
-            document.getElementById("humidity").textContent = parseFloat(jsonData.rel_humidity.toFixed(1));
-        } catch (error) {
-            console.error('Error al obtener los datos:', error);
+        }
+        const payload = {
+            HourMinON: document.getElementById('HourMinON').value,
+            HourMinOFF: document.getElementById('HourMinOFF').value,
+            temp_day: parseInt(document.getElementById('temp_day').value),
+            temp_night: parseInt(document.getElementById('temp_night').value),
+            histeresis: parseInt(document.getElementById('histeresis').value),
+            hum_day: parseInt(document.getElementById('hum_day').value),
+            hum_night: parseInt(document.getElementById('hum_night').value),
+            ind_1_v_status: parseInt(document.getElementById('ind_1_v_status').value),
+            ind_2_v_status: parseInt(document.getElementById('ind_2_v_status').value),
+            ind_1_v_m_on: parseInt(document.getElementById('ind_1_v_m_on').value),
+            ind_1_v_m_off: parseInt(document.getElementById('ind_1_v_m_off').value),
+            ind_2_v_m_on: parseInt(document.getElementById('ind_2_v_m_on').value),
+            ind_2_v_m_off: parseInt(document.getElementById('ind_2_v_m_off').value)
         };
 
+        try {
+            const response = await fetch(`${window.location.origin}/clima_post`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
+            if (response.ok) {
+                msg.textContent = "✓ Parámetros climáticos actualizados";
+                msg.style.color = "#28a745";
+            } else {
+                msg.textContent = "✗ Error en la comunicación";
+                msg.style.color = "#dc3545";
+            }
+        } catch (e) {
+            msg.textContent = "✗ Sin conexión con el ESP32";
+            msg.style.color = "#dc3545";
+        }
     }
-    setInterval(updateData, 5000);
-    updateData();
+
+    window.onload = loadData;
+</script>
 </script>
 
 </html>

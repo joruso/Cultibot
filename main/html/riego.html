@@ -4,17 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
+    <title>Riego</title>
     <style>
-        /* Estilos generales */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
+            background-color: #f0f2f5;
         }
 
-        /* Estilos de la barra lateral */
         .sidebar {
             width: 250px;
             height: 100vh;
@@ -23,6 +22,7 @@
             position: fixed;
             left: -250px;
             transition: left 0.3s;
+            z-index: 1000;
         }
 
         .sidebar.open {
@@ -44,26 +44,24 @@
         .sidebar ul li button {
             padding: 15px;
             text-align: center;
-            cursor: pointer;
-            background-color: #333;
             border: none;
-            border-radius: 5px;
             color: white;
             width: 100%;
             cursor: pointer;
-            transition: background-color 0.3s;
+            background-color: #333;
+            transition: 0.3s;
         }
 
         .sidebar ul li button:hover {
             background-color: #555;
         }
 
-        /* Estilos del contenido principal */
         .content {
             margin-left: 0px;
             padding: 20px;
             width: 100%;
             transition: margin-left 0.3s;
+            box-sizing: border-box;
         }
 
         .content h1 {
@@ -71,20 +69,87 @@
             margin-left: 60px;
         }
 
-        .data-card {
-            padding: 20px;
+        .data-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            padding: 25px;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .card h2 {
+            font-size: 1.1em;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            background-color: #f4f4f4;
+            color: #444;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
 
-        .data-card h2 {
-            font-size: 24px;
-            margin: 0;
+        .input-group {
+            margin-bottom: 15px;
         }
 
-        /* Botón para abrir/cerrar la barra lateral */
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            color: white;
+        }
+
+        .btn-save {
+            background-color: #28a745;
+        }
+
+        .btn-save:hover {
+            background-color: #218838;
+        }
+
+        .btn-test {
+            background-color: #007bff;
+        }
+
+        .btn-test:hover {
+            background-color: #0069d9;
+        }
+
+        .btn-irrigate {
+            background-color: #dc3545;
+            height: 60px;
+            font-size: 1.2em;
+        }
+
+        .btn-irrigate:hover {
+            background-color: #c82333;
+        }
+
         #menuToggle {
             font-size: 24px;
             cursor: pointer;
@@ -96,13 +161,13 @@
             color: white;
             border: none;
             border-radius: 4px;
+            z-index: 1001;
         }
 
-        .data-card input {
-            width: 70px;
-            padding: 3px;
-            font-size: 13px;
-            margin-right: 5px;
+        #status_msg {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -120,127 +185,204 @@
 
     <div class="content" id="content">
         <button id="menuToggle">☰</button>
-        <h1>Riego</h1>
-        <div class="data-card">
-            <h2>Ultimo riego: <span id="day_irrigation">--</span>/<span id="month_irrigati">--</span> ; Hora:<span id="hour_irrigation">--</span>:<span
-                    id="min_irrigation">--</span></h2>
-        </div>
-        <div class="data-card">
-            <h2>Horas entre riegos: <span id="hours_btw_irri">--</span></h2>
-        </div>
-        <div class="data-card">
-            <button id="irrigate_now_btn">Regar ahora</button>
-        </div>
-        <div class="data-card">
-            <input type="number" id="test_seconds" placeholder="Segundos" min="1">
-            <button id="make_test_btn">Hacer test</button>
-        </div>
-        <div class="data-card">
-            <input type="number" id="litres_water" placeholder="Litros de agua" min="0" step="0.1">
-            <input type="number" id="additive_1_ml" placeholder="Aditivo 1" min="0" step="1">
-            <input type="number" id="additive_2_ml" placeholder="Aditivo 2" min="0" step="1">
-            <input type="number" id="additive_3_ml" placeholder="Aditivo 3" min="0" step="1">
-            <button id="calibrate_btn">Calibrar</button>
+        <h1>Gestión de Riego</h1>
+
+        <div class="data-container">
+            <div class="card">
+                <h2>Programación de Ciclos</h2>
+                <div class="input-group">
+                    <label>Frecuencia (Horas entre riegos)</label>
+                    <input type="number" id="hours_btw_irri" min="1" max="96">
+                </div>
+                <div class="input-group">
+                    <label>Volumen Principal (Litros)</label>
+                    <input type="number" id="litres_water" step="0.1" min="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 1 (ml/L)</label>
+                    <input type="number" id="additive_1_ml" min="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 2 (ml/L)</label>
+                    <input type="number" id="additive_2_ml" min="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 3 (ml/L)</label>
+                    <input type="number" id="additive_3_ml" min="0">
+                </div>
+                <div id="status_msg_1"></div>
+                <button class="btn-action btn-save" onclick="saveProgram()">Guardar Programación</button>
+            </div>
+
+            <div class="card">
+                <h2>Calibración y Pruebas</h2>
+                <p style="color: #888; font-size: 0.8em; margin-bottom: 15px;">Configure los valores medidos tras el
+                    test.</p>
+                <div class="input-group">
+                    <label>Segundos de Test</label>
+                    <input type="number" id="test_seconds" value="10" min="1" max="60">
+                </div>
+                <button class="btn-action btn-test" onclick="runTest()">Ejecutar Test Sistema</button>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                <div class="input-group">
+                    <label>Litros medidos</label>
+                    <input type="number" id="cal_litres_water" step="0.1" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 1 (ml/L)</label>
+                    <input type="number" id="cal_additive_1_ml" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 2 (ml/L)</label>
+                    <input type="number" id="cal_additive_2_ml" min="0" value="0">
+                </div>
+                <div class="input-group">
+                    <label>Aditivo 3 (ml/L)</label>
+                    <input type="number" id="cal_additive_3_ml" min="0" value="0">
+                </div>
+                <button class="btn-action btn-save" style="background-color: #6c757d;"
+                    onclick="sendCalibration()">Confirmar y Enviar Calibración</button>
+            </div>
+
+            <div class="card"
+                style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <h2>Acción Inmediata</h2>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">Fuerza el inicio de un ciclo de riego
+                    completo con los parámetros actuales.</p>
+                <button class="btn-action btn-irrigate" onclick="irrigateNow()">REGAR AHORA</button>
+                <div id="status_msg"></div>
+            </div>
         </div>
     </div>
-</body>
-<script>
-    const sidebar = document.getElementById("sidebar");
-    const content = document.getElementById("content");
-    const menuToggle = document.getElementById("menuToggle");
 
-    menuToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("open");
-        content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
-    });
+    <script>
+        const sidebar = document.getElementById("sidebar");
+        const content = document.getElementById("content");
+        const menuToggle = document.getElementById("menuToggle");
 
-    document.getElementById('dash_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/`;
-    };
-    document.getElementById('clime_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/clima`;
-    };
-    document.getElementById('config_btn').onclick = function () {
-        window.location.href = `${window.location.origin}/config`;
-    };
+        menuToggle.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        });
+        document.getElementById('dash_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/`; }, 30);
 
-    const configData = {}
+        };
+        document.getElementById('clime_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/clima`; }, 30);
 
-    document.getElementById('irrigate_now_btn').onclick = function () {
-        configData["comando"] = 5;      // Se le asigna este valor ver archivo protocolWater.h
-        irrigate_comand();
-    };
+        };
+        document.getElementById('config_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/config`; }, 30);
+        };
 
-    document.getElementById('make_test_btn').onclick = function () {
-        if (document.getElementById("test_seconds").value !== "") {
-            configData["comando"] = 3;
-            configData["test_seconds"] = parseFloat (document.getElementById("test_seconds").value);
-            irrigate_comand();
-
-        } else {
-            alert('Introduce valores');
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${window.location.origin}/riego_get`);
+                const data = await response.json();
+                document.getElementById('hours_btw_irri').value = data.hours_btw_irri;
+                document.getElementById('litres_water').value = data.litres_water;
+                document.getElementById('additive_1_ml').value = data.additive_1_ml;
+                document.getElementById('additive_2_ml').value = data.additive_2_ml;
+                document.getElementById('additive_3_ml').value = data.additive_3_ml;
+            } catch (e) { console.error("Error cargando configuración:", e); }
         }
-    };
 
-    document.getElementById('calibrate_btn').onclick = function () {
-        if (document.getElementById("litres_water").value !== "" ||
-            document.getElementById("additive_1_ml").value !== "" ||
-            document.getElementById("additive_2_ml").value !== "" ||
-            document.getElementById("additive_3_ml").value !== "") {
-            configData["comando"] = 4;
-            configData["litres_water"] = parseFloat (document.getElementById("litres_water").value);
-            configData["additive_1_ml"] = parseFloat (document.getElementById("additive_1_ml").value);
-            configData["additive_2_ml"] = parseFloat (document.getElementById("additive_2_ml").value);
-            configData["additive_3_ml"] = parseFloat (document.getElementById("additive_3_ml").value);
-            irrigate_comand();
-        } else {
-            alert('Introduce valores');
+        async function saveProgram() {
+            const msg = document.getElementById("status_msg_1");
+            msg.textContent = "Guardando programación...";
+            const payload = {
+                hours_btw_irri: parseInt(document.getElementById('hours_btw_irri').value),
+                litres_water: parseFloat(document.getElementById('litres_water').value),
+                additive_1_ml: parseInt(document.getElementById('additive_1_ml').value),
+                additive_2_ml: parseInt(document.getElementById('additive_2_ml').value),
+                additive_3_ml: parseInt(document.getElementById('additive_3_ml').value)
+            };
+            try {
+                const response = await fetch(`${window.location.origin}/riego_post`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    msg.textContent = "✓ Parámetros climáticos actualizados";
+                    msg.style.color = "#28a745";
+                } else {
+                    msg.textContent = "✗ Error en la comunicación";
+                    msg.style.color = "#dc3545";
+                }
+            } catch (e) {
+                msg.textContent = "✗ Sin conexión con el ESP32";
+                msg.style.color = "#dc3545";
+            }
         }
-    };
 
-    async function irrigate_comand() {
-        try {
-            const response = await fetch('/riego_json', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(configData),
-            });
+        async function sendCalibration() {
 
-            if (response.ok) {
-                alert('Comando enviado correctamente');
-                console.log(JSON.stringify(configData));
-                //window.history.back();
+            if (document.getElementById("cal_litres_water").value !== "" ||
+                document.getElementById("cal_additive_1_ml").value !== "" ||
+                document.getElementById("cal_additive_2_ml").value !== "" ||
+                document.getElementById("cal_additive_3_ml").value !== "") {
+                configData["comando"] = 4;
+                configData["litres_water"] = parseFloat(document.getElementById("cal_litres_water").value);
+                configData["additive_1_ml"] = parseFloat(document.getElementById("cal_additive_1_ml").value);
+                configData["additive_2_ml"] = parseFloat(document.getElementById("cal_additive_2_ml").value);
+                configData["additive_3_ml"] = parseFloat(document.getElementById("cal_additive_3_ml").value);
+                irrigate_comand();
             } else {
-                alert(`Error al procesarlo: ${response.statusText}`);
+                alert('Introduce valores');
             }
-        } catch (error) {
-            console.error('Error al enviar el comando:', error);
-            alert('Ocurrió un error al enviar la configuración.');
         }
-        configData = {};
-    }
+
+        async function runTest() {
+            if (document.getElementById("test_seconds").value !== "") {
+                configData["comando"] = 3;
+                configData["test_seconds"] = parseFloat(document.getElementById("test_seconds").value);
+                irrigate_comand();
+
+            } else {
+                alert('Introduce valores');
+            }
+        }
+
+        async function irrigateNow() {
+            configData["comando"] = 5;      // Se le asigna este valor ver archivo protocolWater.h
+            irrigate_comand();
+        }
+
+        async function irrigate_comand() {
+            try {
+                const response = await fetch('/riego_post', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(configData),
+                });
+
+                if (response.ok) {
+                    alert('Comando enviado correctamente');
+                    console.log(JSON.stringify(configData));
+                    //window.history.back();
+                } else {
+                    alert(`Error al procesarlo: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error al enviar el comando:', error);
+                alert('Ocurrió un error al enviar la configuración.');
+            }
+            configData = {};
+        }
 
 
-    const url = `${window.location.origin}/config_json`;
-    async function updateData() {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
-            }
-            const jsonData = await response.json();
-            document.getElementById("min_irrigation").textContent = parseFloat(jsonData.min_irrigation);
-            document.getElementById("hour_irrigation").textContent = parseFloat(jsonData.hour_irrigation);
-            document.getElementById("day_irrigation").textContent = parseFloat(jsonData.day_irrigation);
-            document.getElementById("month_irrigati").textContent = parseFloat(jsonData.month_irrigati);
-            document.getElementById("hours_btw_irri").textContent = parseFloat(jsonData.hours_btw_irri);
-        } catch (error) {
-            console.error('Error al obtener los datos:', error);
-        }
-    }
-    updateData();
-</script>
+
+        window.onload = loadConfig;
+    </script>
+</body>
 
 </html>

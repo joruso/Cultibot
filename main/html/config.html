@@ -4,238 +4,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuración ESP32</title>
+    <title>Configuración de Red</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
-            background-color: #f4f4f4;
-        }
-
-        .config-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            width: 300px;
-        }
-
-        .config-container h2 {
-            text-align: center;
-            color: #333;
-        }
-
-        .config-container label {
-            display: block;
-            margin: 10px 0 5px;
-            color: #333;
-        }
-
-        .config-container input[type="text"],
-        .config-container input[type="password"],
-        .config-container input[type="number"] {
-            width: 94%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        .password-container {
+            padding: 0;
             display: flex;
-            align-items: center;
+            background-color: #f0f2f5;
+        }
+
+        .sidebar {
+            width: 250px;
+            height: 100vh;
+            background-color: #333;
+            color: white;
+            position: fixed;
+            left: -250px;
+            transition: left 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            padding: 1em 0;
+            background-color: #444;
+            margin: 0;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .sidebar ul li button {
+            padding: 15px;
+            text-align: center;
+            border: none;
+            color: white;
+            width: 100%;
+            cursor: pointer;
+            background-color: #333;
+            transition: 0.3s;
+        }
+
+        .sidebar ul li button:hover {
+            background-color: #555;
+        }
+
+        .content {
+            margin-left: 0px;
+            padding: 20px;
+            width: 100%;
+            transition: margin-left 0.3s;
+            box-sizing: border-box;
+        }
+
+        .content h1 {
+            color: #333;
+            margin-left: 60px;
+        }
+
+        .data-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .card h2 {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            color: #444;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
             margin-bottom: 15px;
         }
 
-        .password-container input {
-            flex: 1;
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: bold;
+            font-size: 0.9em;
         }
 
-        .password-container button {
-            margin-left: 5px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #ddd;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .password-container button:hover {
-            background-color: #bbb;
-        }
-
-        .config-container .btn-save {
+        .input-group input {
             width: 100%;
             padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .password-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .password-row button {
+            padding: 10px;
+            background: #eee;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
             background-color: #222;
             color: white;
             border: none;
             border-radius: 4px;
-            margin-top: 15px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            font-weight: bold;
+            transition: 0.3s;
+            margin-top: 10px;
         }
 
-        .config-container .btn-back {
-            width: 100%;
+        .btn-save:hover {
+            background-color: #444;
+        }
+
+        #menuToggle {
+            font-size: 24px;
+            cursor: pointer;
             padding: 10px;
-            background-color: #afafaf;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #333;
             color: white;
             border: none;
             border-radius: 4px;
-            margin-top: 15px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+            z-index: 1001;
         }
 
-        .config-container button:hover {
-            background-color: #666;
+        #status_msg {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
-    <div class="config-container">
-        <h2>Configuración</h2>
-        <form id="configForm">
-            <label for="wifi_ssid">Nombre de Red (SSID):</label>
-            <input type="text" id="wifi_ssid" name="wifi_ssid" required>
+    <div class="sidebar" id="sidebar">
+        <h2>Menú</h2>
+        <ul>
+            <li><button id="dash_btn">Inicio</button></li>
+            <li><button id="clime_btn">Clima</button></li>
+            <li><button id="riego_btn">Riego</button></li>
+            <li><button>Configuración</button></li>
+        </ul>
+    </div>
 
-            <label for="password">Contraseña:</label>
-            <div class="password-container">
-                <input type="password" id="password" name="wifi_pass" required>
-                <button type="button" onclick="togglePassword()">👁️</button>
+    <div class="content" id="content">
+        <button id="menuToggle">☰</button>
+        <h1>Configuración de Conectividad</h1>
+
+        <div class="data-container">
+            <div class="card">
+                <h2>Red WiFi (Estación)</h2>
+                <div class="input-group">
+                    <label>Nombre de Red (SSID)</label>
+                    <input type="text" id="wifi_ssid" placeholder="Nombre de tu WiFi">
+                </div>
+                <div class="input-group">
+                    <label>Contraseña</label>
+                    <div class="password-row">
+                        <input type="password" id="wifi_pass" placeholder="••••••••">
+                        <button type="button" onclick="togglePass()">👁️</button>
+                    </div>
+                </div>
             </div>
 
-            <label for="litres_water">Litros de agua:</label>
-            <input type="number" id="litres_water" name="litres_water" step="0.1" required>
+            <div class="card">
+                <h2>Servidor MQTT (Telemetría)</h2>
+                <div class="input-group">
+                    <label>Broker URI (Servidor)</label>
+                    <input type="text" id="mqtt_server" placeholder="mqtt://broker.hivemq.com">
+                </div>
+                <div class="input-group">
+                    <label>Tópico de Publicación</label>
+                    <input type="text" id="mqtt_topic" placeholder="cultibot/sensor/data">
+                </div>
+                <p style="color: #888; font-size: 0.8em;">* Estos parámetros permiten que la aplicación Android reciba
+                    las alertas y el estado del cultivo de forma remota.</p>
+            </div>
+        </div>
 
-            <label for="additive_1_ml">Aditivo 1 por litro:</label>
-            <input type="number" id="additive_1_ml" name="additive_1_ml" step="1" required>
-
-            <label for="additive_2_ml">Aditivo 2 por litro:</label>
-            <input type="number" id="additive_2_ml" name="additive_2_ml" step="1" required>
-
-            <label for="additive_3_ml">Aditivo 3 por litro:</label>
-            <input type="number" id="additive_3_ml" name="additive_3_ml" step="1" required>
-
-            <label for="HourMinON">Hora de encendido:</label>
-            <input type="time" id="HourMinON" name="HourMinON" required>
-
-            <label for="HourMinOFF">Hora de apagado:</label>
-            <input type="time" id="HourMinOFF" name="HourMinOFF" required>
-
-            <button type="button" class="btn-save" onclick="saveConfig()">Guardar</button>
-            <button type="button" class="btn-back" onclick="goBack()">Atrás</button>
-        </form>
+        <div style="max-width: 400px; margin: 30px auto;">
+            <button class="btn-save" onclick="saveConnectivity()">Guardar Cambios de Red</button>
+            <div id="status_msg"></div>
+        </div>
     </div>
 
     <script>
+        const sidebar = document.getElementById("sidebar");
+        const content = document.getElementById("content");
+        const menuToggle = document.getElementById("menuToggle");
 
-        let originalValues = {};
+        menuToggle.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+        });
 
-        function togglePassword() {
-            const passwordField = document.getElementById("password");
-            const type = passwordField.type === "password" ? "text" : "password";
-            passwordField.type = type;
+        document.getElementById('dash_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/`; }, 30);
+
+        };
+        document.getElementById('clime_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/clima`; }, 30);
+
+        };
+        document.getElementById('riego_btn').onclick = function () {
+            sidebar.classList.toggle("open");
+            content.style.marginLeft = sidebar.classList.contains("open") ? "250px" : "0";
+            setTimeout(() => { window.location.href = `${window.location.origin}/riego`; }, 30);
+
+        };
+
+
+        function togglePass() {
+            const p = document.getElementById("wifi_pass");
+            p.type = p.type === "password" ? "text" : "password";
         }
 
-        function goBack() {
-            window.history.back();
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${window.location.origin}/config_get`);
+                const data = await response.json();
+
+                document.getElementById('wifi_ssid').value = data.wifi_ssid || "";
+                document.getElementById('mqtt_server').value = data.mqtt_server || "";
+                document.getElementById('mqtt_topic').value = data.mqtt_topic || "";
+                
+            } catch (e) { console.error("Error cargando configuración:", e); }
         }
 
-        // Enviar datos como JSON
-        async function saveConfig() {
+        async function saveConnectivity() {
+            const msg = document.getElementById("status_msg");
+            msg.textContent = "Actualizando credenciales...";
+            msg.style.color = "#333";
 
-            Object.entries(originalValues).forEach(([key, value]) => {
-
-                const input = document.getElementById(key);
-                if (input && String(input.value) === String(value)) {
-                    document.getElementById(key).value = "";
-                }
-            });
-
-            const form = document.getElementById("configForm");
-            const formData = new FormData(form);
-
-            const configData = {};
-
-            for (const [key, value] of formData.entries()) {
-                if (value.trim() !== "") {
-                    configData[key] = isNaN(value) ? value : parseFloat(value);
-                }
-            }
-
-            if (Object.keys(configData).length === 0) {
-                alert("No se ha introducido ningún valor nuevo. No se realizará ningún cambio.");
-                window.history.back();
-                return;
-            }
-
+            const payload = {
+                wifi_ssid: document.getElementById('wifi_ssid').value,
+                wifi_pass: document.getElementById('wifi_pass').value,
+                mqtt_server: document.getElementById('mqtt_server').value,
+                mqtt_topic: document.getElementById('mqtt_topic').value
+            };
 
             try {
-                const response = await fetch('/save_config', {
+                const response = await fetch(`${window.location.origin}/config_post`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(configData),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(filteredPayload)
                 });
 
                 if (response.ok) {
-                    alert('Configuración guardada correctamente');
-                    window.history.back();
+                    msg.textContent = "✓ Configuración guardada. El sistema se reconectará.";
+                    msg.style.color = "#28a745";
                 } else {
-                    alert(`Error al guardar: ${response.statusText}`);
+                    msg.textContent = "✗ Error al guardar parámetros";
+                    msg.style.color = "#dc3545";
                 }
-            } catch (error) {
-                console.error('Error al enviar los datos:', error);
-                alert('Ocurrió un error al enviar la configuración.');
+            } catch (e) {
+                msg.textContent = "✗ Error de conexión con el controlador";
+                msg.style.color = "#dc3545";
             }
         }
 
-        const url = `${window.location.origin}/config_json`;
-
-        async function updateConfig() {
-
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
-                const jsonData = await response.json();
-
-                console.log(jsonData);
-
-                document.getElementById("wifi_ssid").value = jsonData.wifi_ssid;
-                document.getElementById("litres_water").value = jsonData.litres_water;
-                document.getElementById("additive_1_ml").value = jsonData.additive_1_ml;
-                document.getElementById("additive_2_ml").value = jsonData.additive_2_ml;
-                document.getElementById("additive_3_ml").value = jsonData.additive_3_ml;
-                document.getElementById("HourMinON").value = jsonData.HourMinON;
-                document.getElementById("HourMinOFF").value = jsonData.HourMinOFF;
-
-                originalValues = {
-                    wifi_ssid: jsonData.wifi_ssid,
-                    litres_water: jsonData.litres_water,
-                    additive_1_ml: jsonData.additive_1_ml,
-                    additive_2_ml: jsonData.additive_2_ml,
-                    additive_3_ml: jsonData.additive_3_ml,
-                    HourMinON: jsonData.HourMinON,
-                    HourMinOFF: jsonData.HourMinOFF,
-                }
-
-            } catch (error) {
-                console.error('Error al obtener los datos:', error);
-            };
-        }
-
-        updateConfig();
-
+        window.onload = loadConfig;
     </script>
 </body>
 

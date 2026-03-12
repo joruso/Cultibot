@@ -219,11 +219,20 @@ static int8_t show_menu(char *names[])
     if (lastchange + TIMEOUT < esp_timer_get_time() || sig_estado == 0) // si se llega al timeout se vuelve al estado inicial
     {
         climate_load_parameters_from_nvs();
+        while (press_sw)
+        {
+        }
         return -1;
     }
     if (sig_estado % 10 == 0)
     { // Se ha presionado VOLVER en el menu, no se puede tener mas de 10 opciones por menu
+        while (press_sw)
+        {
+        }
         return 0;
+    }
+    while (press_sw)
+    {
     }
     return sig_estado;
 }
@@ -316,7 +325,8 @@ esp_err_t mod_variable(char *text, char *var, uint8_t min_value, uint8_t max_val
     return err;
 }
 
-void pairing_udp(){
+void pairing_udp()
+{
 
     int seg = 21;
     LCD_clearScreen();
@@ -325,7 +335,6 @@ void pairing_udp(){
     ESP_ERROR_CHECK(wifi_send_UDP_broadcast_info(&seg));
     LCD_clearScreen();
 }
-
 
 void init_menu()
 {
@@ -337,7 +346,7 @@ void init_menu()
     }
     LCD_clearScreen();
     init_gpio_menu();
-    
+
     while (1)
     {
 
@@ -355,17 +364,16 @@ void init_menu()
                 vTaskDelay(0.9 * CONFIG_FREERTOS_HZ);
             }
 
-            if (esp_timer_get_time() > lastchange + TIMEOUT){
+            if (esp_timer_get_time() > lastchange + TIMEOUT)
+            {
                 LCD_LedScreen();
                 while (estado == -1)
                 {
                     vTaskDelay(0.5 * CONFIG_FREERTOS_HZ);
                 }
                 estado = -1;
-                
             }
 
-            
             break;
 
         case 0: // MUESTRA LAS LISTA DE OPCIONES
@@ -434,13 +442,10 @@ void init_menu()
             estado = 2;
             break;
         case 23:
-            ESP_ERROR_CHECK(mod_variable("Histe Dia Celsius", HISTERESIS_DAY, 1, 5));
+            ESP_ERROR_CHECK(mod_variable("Histe Dia Celsius", HISTERESIS, 1, 5));
             estado = 2;
             break;
-        case 24:
-            ESP_ERROR_CHECK(mod_variable("Histe Noche Celsius", HISTERESIS_NIGHT, 1, 5));
-            estado = 2;
-            break;
+
         case 3: // MENU DE LA HUMEDAD
             estado = show_menu((char *[]){"Volver", "Humedad Dia", "Humedad Noche", NULL});
             break;
@@ -476,12 +481,42 @@ void init_menu()
                 free(aux);
                 assert(0);
             }
-            ESP_ERROR_CHECK(mod_variable("0-OFF 1-ON 2-ON/OFF", INDOOR_VENT_STATUS, 0, 2));
-            ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_VENT_STATUS, aux));
-            if (*aux == 2)
+            LCD_clearScreen();
+            LCD_setCursor(1, 0);
+            LCD_writeStr("0-OFF 1-ON 2-ON/OFF");
+            LCD_setCursor(1, 2);
+            LCD_writeStr("3-CONMUTAR AMBOS");
+            while (!press_sw)
             {
-                ESP_ERROR_CHECK(mod_variable("Min encendido", INDOOR_VENT_M_ON, 0, 250));
-                ESP_ERROR_CHECK(mod_variable("Min apagado", INDOOR_VENT_M_OFF, 0, 250));
+            }
+
+            ESP_ERROR_CHECK(mod_variable("Fan 1 Mode", INDOOR_1_VENT_STATUS, 0, 3));
+            ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_1_VENT_STATUS, aux));
+            if (*aux == INTERMITENT)
+            {
+                ESP_ERROR_CHECK(mod_variable("Min encendido", INDOOR_1_VENT_M_ON, 1, 250));
+                ESP_ERROR_CHECK(mod_variable("Min apagado", INDOOR_1_VENT_M_OFF, 1, 250));
+            }
+            if (*aux == TOGGLE) // En este caso no se modifica el fan 2
+            {
+                ESP_ERROR_CHECK(mod_variable("Min Intervalo 1", INDOOR_1_VENT_M_ON, 1, 250));
+                ESP_ERROR_CHECK(mod_variable("Min intervalo 2", INDOOR_1_VENT_M_OFF, 1, 250));
+            }
+            else
+            {
+                LCD_clearScreen();
+                LCD_setCursor(1, 0);
+                LCD_writeStr("0-OFF 1-ON 2-ON/OFF");
+                while (!press_sw)
+                {
+                }
+                ESP_ERROR_CHECK(mod_variable("Fan 2 Mode", INDOOR_2_VENT_STATUS, 0, 2));
+                ESP_ERROR_CHECK(nvs_get_value_num_u8(INDOOR_2_VENT_STATUS, aux));
+                if (*aux == INTERMITENT)
+                {
+                    ESP_ERROR_CHECK(mod_variable("Min encendido", INDOOR_2_VENT_M_ON, 1, 250));
+                    ESP_ERROR_CHECK(mod_variable("Min apagado", INDOOR_2_VENT_M_OFF, 1, 250));
+                }
             }
             free(aux);
             estado = 5;
@@ -491,10 +526,10 @@ void init_menu()
             ESP_ERROR_CHECK(mod_variable("Min apagado", LIGHT_OFF_MIN, 0, 59));
             estado = 5;
             break;
-        case 6: // MENU DE LA HORA 
+        case 6: // MENU DE LA HORA
             estado = show_menu((char *[]){"Volver", "Minutos", "Hora", NULL});
             break;
-        case 7: // EMPAREJAMIENTO POR UDP 
+        case 7: // EMPAREJAMIENTO POR UDP
             pairing_udp();
             estado = -1;
             break;
